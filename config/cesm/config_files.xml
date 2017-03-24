@@ -88,6 +88,7 @@
       <value component="allactive">$SRCROOT/cime_config/config_compsets.xml</value>
       <value component="drv"      >$CIMEROOT/src/drivers/mct/cime_config/config_compsets.xml</value>
       <value component="cam"      >$SRCROOT/components/cam/cime_config/config_compsets.xml</value>
+      <value component="wrf"      >$SRCROOT/components/wrf/cime_config/config_compsets.xml</value>
       <value component="cism"     >$SRCROOT/components/cism/cime_config/config_compsets.xml</value>
       <value component="clm"      >$SRCROOT/components/clm/cime_config/config_compsets.xml</value>
       <value component="cice"     >$SRCROOT/components/cice/cime_config/config_compsets.xml</value>
@@ -107,6 +108,7 @@
       <value component="allactive">$SRCROOT/cime_config/config_pes.xml</value>
       <value component="drv"      >$CIMEROOT/src/drivers/mct/cime_config/config_pes.xml</value>
       <value component="cam"      >$SRCROOT/components/cam/cime_config/config_pes.xml</value>
+      <value component="wrf"      >$SRCROOT/components/wrf/cime_config/config_pes.xml</value>
       <value component="cism"     >$SRCROOT/components/cism/cime_config/config_pes.xml</value>
       <value component="clm"      >$SRCROOT/components/clm/cime_config/config_pes.xml</value>
       <value component="cice"     >$SRCROOT/components/cice/cime_config/config_pes.xml</value>
@@ -168,6 +170,7 @@
       <value component="allactive">$SRCROOT/cime_config/testlist_allactive.xml</value>
       <value component="drv"      >$CIMEROOT/src/drivers/mct/cime_config/testdefs/testlist_drv.xml</value>
       <value component="cam"      >$SRCROOT/components/cam/cime_config/testdefs/testlist_cam.xml</value>
+      <value component="wrf"      >$SRCROOT/components/wrf/cime_config/testdefs/testlist_wrf.xml</value>
       <value component="cism"     >$SRCROOT/components/cism/cime_config/testdefs/testlist_cism.xml</value>
       <value component="clm"      >$SRCROOT/components/clm/cime_config/testdefs/testlist_clm.xml</value>
       <value component="cice"     >$SRCROOT/components/cice/cime_config/testdefs/testlist_cice.xml</value>
@@ -188,6 +191,7 @@
       <value component="allactive">$SRCROOT/cime_config/testmods_dirs</value>
       <value component="drv"      >$CIMEROOT/src/drivers/mct/cime_config/testdefs/testmods_dirs</value>
       <value component="cam"      >$SRCROOT/components/cam/cime_config/testdefs/testmods_dirs</value>
+      <value component="wrf"      >$SRCROOT/components/wrf/cime_config/testdefs/testmods_dirs</value>
       <value component="cism"     >$SRCROOT/components/cism/cime_config/testdefs/testmods_dirs</value>
       <value component="clm"      >$SRCROOT/components/clm/cime_config/testdefs/testmods_dirs</value>
       <value component="cice"     >$SRCROOT/components/cice/cime_config/testdefs/testmods_dirs</value>
@@ -207,6 +211,7 @@
       <value component="allactive">$SRCROOT/cime_config/usermods_dirs</value>
       <value component="drv"      >$CIMEROOT/src/drivers/mct/cime_config/usermods_dirs</value>
       <value component="cam"      >$SRCROOT/components/cam/cime_config/usermods_dirs</value>
+      <value component="wrf"      >$SRCROOT/components/wrf/cime_config/usermods_dirs</value>
       <value component="cism"     >$SRCROOT/components/cism/cime_config/usermods_dirs</value>
       <value component="clm"      >$SRCROOT/components/clm/cime_config/usermods_dirs</value>
       <value component="cice"     >$SRCROOT/components/cice/cime_config/usermods_dirs</value>
@@ -286,6 +291,7 @@
     <default_value>unset</default_value>
     <values>
       <value component="cam" >$SRCROOT/components/cam/cime_config/config_component.xml</value>
+      <value component="wrf" >$SRCROOT/components/wrf/cime_config/config_component.xml</value>
       <value component="datm">$CIMEROOT/src/components/data_comps/datm/cime_config/config_component.xml</value>
       <value component="satm">$CIMEROOT/src/components/stub_comps/satm/cime_config/config_component.xml</value>
       <value component="xatm">$CIMEROOT/src/components/xcpl_comps/xatm/cime_config/config_component.xml</value>

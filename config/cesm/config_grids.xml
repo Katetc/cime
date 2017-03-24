@@ -805,6 +805,14 @@
       <mask>gx1v7</mask>
     </model_grid>
 
+    <!-- WRF model grids -->
+ 
+    <model_grid alias="wus12_wus12">
+       <grid name="atm">wus12</grid>
+       <grid name="lnd">wus12</grid>
+       <grid name="ocnice">wus12</grid>
+    </model_grid>
+
     <!-- new runoff grids for data runoff model DROF -->
 
     <model_grid alias="T31_g37_rx1" compset="_DROF">
