@@ -675,7 +675,7 @@ contains
 	  diff = abs(data1(n)-data2(n))
 	  max_diff = max(max_diff,diff)
 	  if (diff > eps) then
-      !debug            write(logunit,*)'n= ',n,' data1= ',data1(n),' data2= ',data2(n),' diff= ',diff, ' eps= ',eps
+             write(logunit,*)'n= ',n,' data1= ',data1(n),' data2= ',data2(n),' diff= ',diff, ' eps= ',eps
 	     ndiff = ndiff + 1
 	  endif
        end if
@@ -751,26 +751,26 @@ contains
     if (samegrid) then
        ! default 1.0
     else
-       do n=1,gridsize
-          rmask  = domain%data%rAttr(m1,n)
-          rarea  = domain%data%rAttr(j1,n)
-          raream = domain%data%rAttr(j2,n)
-          if ( abs(rmask) >= 1.0e-06) then
-             if (rarea * raream /= 0.0_R8) then
-                mdl2drv(n) = rarea/raream
-                drv2mdl(n) = 1.0_R8/mdl2drv(n)
+       !do n=1,gridsize
+       !   rmask  = domain%data%rAttr(m1,n)
+       !   rarea  = domain%data%rAttr(j1,n)
+       !   raream = domain%data%rAttr(j2,n)
+       !   if ( abs(rmask) >= 1.0e-06) then
+       !      if (rarea * raream /= 0.0_R8) then
+       !         mdl2drv(n) = rarea/raream
+       !         drv2mdl(n) = 1.0_R8/mdl2drv(n)
                 !if (mdl2drv(n) > 10.0 .or. mdl2drv(n) < 0.1) then
                 !   write(logunit,*) trim(subname),' WARNING area,aream= ', &
                 !      domain%data%rAttr(j1,n),domain%data%rAttr(j2,n),' in ',n,gridsize
                 !endif
-             else
-                write(logunit,*) trim(subname),' ERROR area,aream= ', &
-                     rarea,raream,' in ',n,gridsize
-                call shr_sys_flush(logunit)
-                call shr_sys_abort()
-             endif
-          endif
-       enddo
+       !      else
+       !         write(logunit,*) trim(subname),' ERROR area,aream= ', &
+       !              rarea,raream,' in ',n,gridsize
+       !         call shr_sys_flush(logunit)
+       !         call shr_sys_abort()
+       !      endif
+       !   endif
+       !enddo
     end if
 
     rmin1 = minval(mdl2drv)

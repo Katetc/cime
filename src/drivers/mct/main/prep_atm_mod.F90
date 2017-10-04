@@ -717,9 +717,10 @@ contains
     !
     ! Local Variables
     integer :: eli, efi
-    type(mct_avect), pointer :: l2x_lx
+    type(mct_avect), pointer :: l2x_lx,l2x_ax_eli
     character(*), parameter  :: subname = '(prep_atm_calc_l2x_ax)'
     character(*), parameter  :: F00 = "('"//subname//" : ', 4A )"
+    integer :: lsize_a, lsize_l, kl, ka, n
     !---------------------------------------------------------------
 
     call t_drvstartf (trim(timer),barrier=mpicom_CPLID)
@@ -727,12 +728,29 @@ contains
        efi = mod((eli-1),num_inst_frc) + 1
 
        l2x_lx => component_get_c2x_cx(lnd(eli))
+       l2x_ax_eli => l2x_ax(eli)
        call seq_map_map(mapper_Sl2a, l2x_lx, l2x_ax(eli), &
             fldlist=seq_flds_l2x_states, norm=.true., &
             avwts_s=fractions_lx(efi), avwtsfld_s='lfrin')
        call seq_map_map(mapper_Fl2a, l2x_lx, l2x_ax(eli), &
             fldlist=seq_flds_l2x_fluxes, norm=.true., &
             avwts_s=fractions_lx(efi), avwtsfld_s='lfrin')
+
+       !lsize_a = mct_aVect_lsize(l2x_ax(eli))
+       !lsize_l = mct_aVect_lsize(l2x_lx)
+       !write(logunit,*)'KTC DEBUG: lsize_a, lsize_l',lsize_a, lsize_l
+
+       !kl = mct_aVect_indexRA(l2x_lx,'Fall_lwup')
+       !ka = mct_aVect_indexRA(l2x_ax_eli,'Fall_lwup')
+
+       ! print out lsize_a, lsize_l (verify that they should be the same)
+       !do n = 1,lsize_l !assuming they are the same
+       !   write(logunit,*)'KTC DEBUG: n, lwup_a, lwup_l',n,l2x_lx%rattr(kl,n)
+       !end do
+       !do n = 1,lsize_a
+       !   write(logunit,*)'KTC DEBUG: n, lwup_a',n,l2x_ax_eli%rattr(ka,n)
+       !end do
+       !call shr_sys_flush(logunit)
     enddo
     call t_drvstopf  (trim(timer))
 

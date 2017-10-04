@@ -442,6 +442,10 @@ contains
           km = mct_aVect_indexRa(dom_s%data, "aream" )
           dom_s%data%rAttr(km,:) = dom_s%data%rAttr(ka,:)
 
+          if (iamroot_CPLID) then
+             write(logunit,*) 'KTC call seq_map_map for atm & ocn'
+             call shr_sys_flush(logunit)
+          endif
           call seq_map_map(mapper_Fa2o, av_s=dom_s%data, av_d=dom_d%data, fldlist='aream')
        else
           gsmap_s => component_get_gsmap_cx(ocn(1)) ! gsmap_ox
@@ -460,6 +464,10 @@ contains
        dom_s  => component_get_dom_cx(ocn(1))   !dom_ox
        dom_d  => component_get_dom_cx(ice(1))   !dom_ix
 
+          if (iamroot_CPLID) then
+             write(logunit,*) 'KTC call seq_map_map for ice & ocn'
+             call shr_sys_flush(logunit)
+          endif
        call seq_map_map(mapper_SFo2i, av_s=dom_s%data, av_d=dom_d%data, fldlist='aream') 
     endif
 
@@ -483,6 +491,11 @@ contains
           dom_s  => component_get_dom_cx(atm(1))   !dom_ax
           dom_d  => component_get_dom_cx(lnd(1))   !dom_lx
 
+          if (iamroot_CPLID) then
+             write(logunit,*) 'KTC call seq_map_map for atm & lnd'
+             call shr_sys_flush(logunit)
+          endif
+
           call seq_map_map(mapper_Sa2l, av_s=dom_s%data, av_d=dom_d%data, fldlist='aream')
        else
           gsmap_d => component_get_gsmap_cx(lnd(1)) ! gsmap_lx
@@ -498,6 +511,11 @@ contains
        if (samegrid_lg) then
           dom_s  => component_get_dom_cx(lnd(1))   !dom_lx
           dom_d  => component_get_dom_cx(glc(1))   !dom_gx
+
+          if (iamroot_CPLID) then
+             write(logunit,*) 'KTC call seq_map_map for glc & lnd'
+             call shr_sys_flush(logunit)
+          endif
 
           call seq_map_map(mapper_Sl2g, av_s=dom_s%data, av_d=dom_d%data, fldlist='aream')
        else

@@ -97,6 +97,11 @@ contains
     gsmap_d => component_get_gsmap_cx(comp_d)
 
     if (mct_gsmap_Identical(gsmap_s,gsmap_d)) then
+
+       if (seq_comm_iamroot(CPLID) .and. present(string)) then
+          write(logunit,'(A)') 'mct_gsmap_Identical  strategy=copy'
+          call shr_sys_flush(logunit)
+       endif 
        call seq_map_mapmatch(mapid,gsmap_s=gsmap_s,gsmap_d=gsmap_d,strategy="copy")
 
        if (mapid > 0) then
@@ -110,6 +115,10 @@ contains
        endif
 
     elseif (samegrid) then
+       if (seq_comm_iamroot(CPLID) .and. present(string)) then
+          write(logunit,'(A)') 'samegrid mapper%strategy= rearrange'
+          call shr_sys_flush(logunit)
+       endif 
        call seq_map_mapmatch(mapid,gsmap_s=gsmap_s,gsmap_d=gsmap_d,strategy="rearrange")
 
        if (mapid > 0) then
@@ -126,7 +135,9 @@ contains
        endif
 
     else
-
+          if(present(esmf_map)) then
+             write(logunit,'(A)') subname//' ESMF mapper & mismatched grids for '//trim(string)
+          endif
        ! --- Initialize Smatp
        call shr_mct_queryConfigFile(mpicom,maprcfile,maprcname,mapfile,maprctype,maptype)
 
@@ -256,10 +267,6 @@ contains
     integer(IN),save :: ltag    ! message tag for rearrange
     character(len=*),parameter :: subname = "(seq_map_map) "
     !-----------------------------------------------------
-
-    if (seq_comm_iamroot(CPLID) .and. present(string)) then
-       write(logunit,'(A)') subname//' called for '//trim(string)
-    endif
 
     lnorm = .true.
     if (present(norm)) then
@@ -437,7 +444,8 @@ contains
        endif
        call seq_map_cart3d(mapper, type, av_s, av_d, fldu, fldv, norm=lnorm, string=string)
     elseif (trim(type) == 'none') then
-       call seq_map_map(mapper, av_s, av_d, fldlist=trim(fldu)//':'//trim(fldv), norm=lnorm)
+       write(logunit,*) subname, ' type==none', trim(fldu)//':'//trim(fldv)
+       call seq_map_map(mapper, av_s, av_d, fldlist=trim(fldu)//':'//trim(fldv),string=string,norm=lnorm)
     else
        write(logunit,*) subname,' ERROR: type unsupported ',trim(type)
        call shr_sys_abort(trim(subname)//' ERROR in type='//trim(type))
@@ -512,6 +520,7 @@ contains
           av3_s%rAttr(kuz,n) = uz
        enddo
 
+       write(logunit,*) subname, ' seq_map_map to be called for', trim(string)
        call seq_map_map(mapper, av3_s, av3_d, norm=lnorm)
 
        kux = mct_aVect_indexRA(av3_d,'ux')
@@ -877,6 +886,7 @@ contains
     !--- map ---
 
     if (mapper%esmf_map) then
+       write(logunit,*) subname, ' mapper%esmf_map not supported'
        call shr_sys_abort(subname//' ERROR: esmf SMM not supported')
     else
        ! MCT based SMM

@@ -811,7 +811,6 @@
        <grid name="atm">wus12</grid>
        <grid name="lnd">wus12</grid>
        <grid name="ocnice">wus12</grid>
-       <mask>gx1v6</mask>
     </model_grid>
 
     <!-- new runoff grids for data runoff model DROF -->
@@ -977,10 +976,8 @@
 
     <domain name="wus12">
       <nx>144</nx>  <ny>96</ny>
-      <file grid="atm|lnd" mask="gx1v6">domain.lnd.fv0.9x1.25_gx1v6.090309.nc</file>
-      <file grid="ocnice" mask="gx1v6">domain.ocn.0.9x1.25_gx1v6_090403.nc</file>
-      <file grid="atm|lnd" mask="gx1v7">domain.lnd.fv0.9x1.25_gx1v7.151020.nc</file>
-      <file grid="ocnice" mask="gx1v7">domain.ocn.fv0.9x1.25_gx1v7.151020.nc</file>
+      <file grid="atm|lnd">domain.lnd.wus12_wus12.20101108.nc</file>
+      <file grid="ocnice">domain.ocn.wus12.20100518.nc</file>
       <desc>12km Continguous US for WRF atmosphere grid:</desc>
     </domain>
 

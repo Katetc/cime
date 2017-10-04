@@ -289,6 +289,12 @@ contains
        endif
        call shr_sys_flush(logunit)
 
+       if (iamroot_CPLID) then
+             write(logunit,*) ' '
+             write(logunit,F00) 'KTC finished ice, starting rof'
+        end if
+        call shr_sys_flush(logunit)
+
        if (rof_c2_ocn) then
           if (iamroot_CPLID) then
              write(logunit,*) ' '
@@ -316,6 +322,10 @@ contains
                   string='mapper_Fr2o initialization', esmf_map=esmf_map_flag)
           endif
        endif
+       if (iamroot_CPLID) then
+             write(logunit,*) ' '
+             write(logunit,F00) 'KTC finished rof, starting glc'
+        end if
        call shr_sys_flush(logunit)
 
        if (glc_c2_ocn) then
@@ -327,6 +337,10 @@ contains
                'seq_maps.rc', 'glc2ocn_rmapname:', 'glc2ocn_rmaptype:',samegrid_og, &
                'mapper_Rg2o initialization',esmf_map_flag)
        endif
+       if (iamroot_CPLID) then
+             write(logunit,*) ' '
+             write(logunit,F00) 'KTC finished glc, starting wav'
+        end if
        call shr_sys_flush(logunit)
 
        if (wav_c2_ocn) then
@@ -338,6 +352,10 @@ contains
                'seq_maps.rc', 'wav2ocn_smapname:', 'wav2ocn_smaptype:',samegrid_ow, &
                'mapper_Sw2o initialization')
        endif
+       if (iamroot_CPLID) then
+             write(logunit,*) ' '
+             write(logunit,F00) 'KTC finished wav, finished prep_ocn_init'
+        end if
        call shr_sys_flush(logunit)
 
     end if
