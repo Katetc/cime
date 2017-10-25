@@ -186,6 +186,7 @@ def _case_setup_impl(case, caseroot, clean=False, test_mode=False, reset=False, 
         # Create user_nl files for the required number of instances
         if not os.path.exists("user_nl_cpl"):
             logger.info("Creating user_nl_xxx files for components and cpl")
+        import pdb; pdb.set_trace()
         # loop over models
         for model in models:
             comp = case.get_value("COMP_%s" % model)
