@@ -565,7 +565,7 @@ contains
     ndiff = 0
     do n = 1,npts
        if (abs(dfrac(n)) > eps_tiny .and. abs(dmask(n)) < eps_tiny) then
-!debug            write(logunit,*)'n= ',n,' dfrac= ',dfrac(n),' dmask= ',dmask(n)
+            write(logunit,*)'n= ',n,' dfrac= ',dfrac(n),' dmask= ',dmask(n)
           ndiff = ndiff + 1
        endif
     enddo

@@ -990,7 +990,7 @@
     </domain>
 
     <domain name="gom3">
-      <nx>856</nx>  <ny>811</ny>
+      <nx>655</nx>  <ny>489</ny>
       <file grid="atm|lnd">/glade/p/work/katec/tamu/CRESM_Cheyenne_JaisonK/cresm-1.0.0_gom_input/domain.datm.txglo.nc</file>
       <file grid="ocnice">/glade/p/work/katec/tamu/CRESM_Cheyenne_JaisonK/cresm-1.0.0_gom_input/domain.txglo.nc</file>
       <desc>3km Gulf of Mexico for ROMS with data atmosphere</desc>

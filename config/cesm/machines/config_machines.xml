@@ -1660,7 +1660,6 @@
 	<command name="load">ncarenv/1.0</command>
 	<command name="load">ncarbinlibs/1.1</command>
 	<command name="load">perlmods</command>
-	<command name="load">gmake/4.1</command>
 	<command name="load">python</command>
 	<command name="load">all-python-libs</command>
 	<command name="load">git</command>
