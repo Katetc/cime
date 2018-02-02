@@ -827,6 +827,11 @@
       <grid name="ocnice">gom3x</grid>
     </model_grid>
 
+    <model_grid alias="tx9k_g3x">
+      <grid name="atm">txlw9k</grid>
+      <grid name="lnd">txlw9k</grid>
+      <grid name="ocnice">gom3x</grid>
+    </model_grid>
 
     <!-- new runoff grids for data runoff model DROF -->
 
@@ -1008,6 +1013,12 @@
       <file grid="atm|lnd">/glade/p/work/katec/tamu/cesm_input_data/domain.datm.txgloExt.nc</file>
       <file grid="ocnice">/glade/p/work/katec/tamu/cesm_input_data/domain.ocnice.txgloExt.nc</file>
       <desc>3km Gulf of Mexico for XROMS</desc>
+    </domain>
+
+    <domain name="txlw9k">
+      <nx>285</nx>  <ny>270</ny>
+      <file grid="atm|lnd">/glade/p/work/katec/tamu/cesm_input_data/domain.lndatm.txlw9k.120817.nc</file>
+      <desc>9km Gulf of Mexico for Wrf, to pair with gom3x in xRoms</desc>
     </domain>
 
     <domain name="1.9x2.5">
