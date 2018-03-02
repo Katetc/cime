@@ -549,7 +549,6 @@ class Case(object):
             self.set_value("GRIDS_SPEC_FILE", gridfile)
         grids = Grids(gridfile)
 
-        import pdb; pdb.set_trace()
         gridinfo = grids.get_grid_info(name=grid_name, compset=self._compsetname)
 
         self._gridname = gridinfo["GRID"]

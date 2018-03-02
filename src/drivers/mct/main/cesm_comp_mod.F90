@@ -1612,55 +1612,19 @@ subroutine cesm_init()
 
       call prep_ocn_init(infodata, atm_c2_ocn, atm_c2_ice, ice_c2_ocn, rof_c2_ocn, wav_c2_ocn, glc_c2_ocn)
 
-      if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'End ocn init'
-            call shr_sys_flush(logunit)
-         endif
-
       call prep_ice_init(infodata, ocn_c2_ice, glc_c2_ice, rof_c2_ice )
-
-      if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'End ice init'
-            call shr_sys_flush(logunit)
-         endif
 
       call prep_rof_init(infodata, lnd_c2_rof)
 
-      if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'End rof init'
-            call shr_sys_flush(logunit)
-         endif
-
       call prep_glc_init(infodata, lnd_c2_glc)
 
-      if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'End wav init'
-            call shr_sys_flush(logunit)
-         endif
-
       call prep_wav_init(infodata, atm_c2_wav, ocn_c2_wav, ice_c2_wav)
-
-      if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'End wav init'
-            call shr_sys_flush(logunit)
-         endif
 
       if (drv_threading) call seq_comm_setnthreads(nthreads_GLOID)
       call t_adj_detailf(-2)
       call t_stopf('CPL:init_maps')
 
    endif
-
-   if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'End component map inits'
-            call shr_sys_flush(logunit)
-         endif
 
    !----------------------------------------------------------
    !| Update aream in domains where appropriate
@@ -1670,24 +1634,12 @@ subroutine cesm_init()
       call t_startf ('CPL:init_aream')
       call t_adj_detailf(+2)
 
-      if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'Start init_aream'
-            call shr_sys_flush(logunit)
-         endif
-
       if (drv_threading) call seq_comm_setnthreads(nthreads_CPLID)
 
       call component_init_aream(infodata, rof_c2_ocn, samegrid_ao, samegrid_al, &
            samegrid_ro, samegrid_lg)
 
       if (drv_threading) call seq_comm_setnthreads(nthreads_GLOID)
-
-      if (iamroot_CPLID) then
-            write(logunit,*) ' '
-            write(logunit,F00) 'End init_aream'
-            call shr_sys_flush(logunit)
-         endif
 
       call t_adj_detailf(-2)
       call t_stopf ('CPL:init_aream')

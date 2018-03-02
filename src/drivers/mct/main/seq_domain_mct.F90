@@ -565,7 +565,7 @@ contains
     ndiff = 0
     do n = 1,npts
        if (abs(dfrac(n)) > eps_tiny .and. abs(dmask(n)) < eps_tiny) then
-            write(logunit,*)'n= ',n,' dfrac= ',dfrac(n),' dmask= ',dmask(n)
+!debug            write(logunit,*)'n= ',n,' dfrac= ',dfrac(n),' dmask= ',dmask(n)
           ndiff = ndiff + 1
        endif
     enddo
@@ -675,7 +675,7 @@ contains
 	  diff = abs(data1(n)-data2(n))
 	  max_diff = max(max_diff,diff)
 	  if (diff > eps) then
-             write(logunit,*)'n= ',n,' data1= ',data1(n),' data2= ',data2(n),' diff= ',diff, ' eps= ',eps
+      !debug             write(logunit,*)'n= ',n,' data1= ',data1(n),' data2= ',data2(n),' diff= ',diff, ' eps= ',eps
 	     ndiff = ndiff + 1
 	  endif
        end if
