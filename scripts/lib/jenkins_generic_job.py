@@ -72,7 +72,7 @@ def jenkins_generic_job(generate_baselines, submit_to_cdash, no_batch,
         shutil.rmtree("Testing")
 
     # Remove old dirs
-    test_id_root = "J{}{}".format(baseline_name.capitalize(), test_suite.replace("acme_", "").capitalize())
+    test_id_root = "J{}{}".format(baseline_name.capitalize(), test_suite.replace("e3sm_", "").capitalize())
     for clutter_area in [scratch_root, test_root, run_area]:
         for old_file in glob.glob("{}/*{}*{}*".format(clutter_area, mach_comp, test_id_root)):
             if (os.path.isdir(old_file)):
@@ -124,7 +124,7 @@ def jenkins_generic_job(generate_baselines, submit_to_cdash, no_batch,
     os.environ["CIME_MACHINE"] = machine.get_machine_name()
 
     if submit_to_cdash:
-        logging.info("To resubmit to dashboard: wait_for_tests {}/*{}/TestStatus -b {}".format(test_root, test_id, cdash_build_name))
+        logging.info("To resubmit to dashboard: wait_for_tests {}/*{}/TestStatus --no-wait -b {}".format(test_root, test_id, cdash_build_name))
 
     tests_passed = CIME.wait_for_tests.wait_for_tests(glob.glob("{}/*{}/TestStatus".format(test_root, test_id)),
                                                  no_wait=not use_batch, # wait if using queue
