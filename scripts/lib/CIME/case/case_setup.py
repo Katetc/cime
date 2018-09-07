@@ -183,9 +183,6 @@ def _case_setup_impl(case, caseroot, clean=False, test_mode=False, reset=False):
             comp = case.get_value("COMP_{}".format(model))
             logger.debug("Building {} usernl files".format(model))
             _build_usernl_files(case, model, comp)
-            if comp == "cism":
-                glcroot = case.get_value("COMP_ROOT_DIR_GLC")
-                run_cmd_no_fail("{}/cime_config/cism.template {}".format(glcroot, caseroot))
 
         _build_usernl_files(case, "drv", "cpl")
 
