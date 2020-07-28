@@ -88,6 +88,7 @@ module shr_cal_mod
   public :: shr_cal_setDebug   ! set internal debug level
   public :: shr_cal_ymdtod2string ! translate ymdtod to string for filenames
   public :: shr_cal_datetod2string ! translate date to string for filenames
+  public :: shr_cal_ymds2rday_offset ! translate yr,month,day,sec offset to a fractional day offset
 
   ! !PUBLIC DATA MEMBERS:
 
@@ -227,7 +228,7 @@ contains
   !
   ! !INTERFACE:  -----------------------------------------------------------------
 
-  subroutine shr_cal_timeSet_int(etime,ymd,sec,calendar)
+  subroutine shr_cal_timeSet_int(etime,ymd,sec,calendar, rc)
 
     implicit none
 
@@ -236,13 +237,13 @@ contains
     type(ESMF_Time),intent(out) :: etime
     integer(SHR_KIND_IN),intent(in ) :: ymd,sec   ! ymd, sec
     character(*)        ,intent(in)  :: calendar  ! calendar type
-
+    integer, intent(out), optional   :: rc
     !EOP
 
     integer(SHR_KIND_IN) :: year,month,day
     type(ESMF_CALKIND_FLAG) :: calkind
     character(len=shr_cal_calMaxLen) :: lcalendar
-    integer :: rc
+    integer :: lrc
     character(*),parameter :: subName = "(shr_cal_timeSet)"
 
     !-------------------------------------------------------------------------------
@@ -258,12 +259,15 @@ contains
     endif
 
     call shr_cal_date2ymd(ymd,year,month,day)
-    call ESMF_TimeSet(etime,yy=year,mm=month,dd=day,s=sec,calkindflag=calkind,rc=rc)
-    if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
-
+    call ESMF_TimeSet(etime,yy=year,mm=month,dd=day,s=sec,calkindflag=calkind,rc=lrc)
+    if (present(rc)) then
+       rc = lrc
+    else if(lrc /= ESMF_SUCCESS) then
+       call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+    endif
   end subroutine shr_cal_timeSet_int
 
-  subroutine shr_cal_timeSet_long(etime,ymd,sec,calendar)
+  subroutine shr_cal_timeSet_long(etime,ymd,sec,calendar, rc)
 
     implicit none
 
@@ -273,13 +277,13 @@ contains
     integer(SHR_KIND_I8),intent(in ) :: ymd ! ymd
     integer(SHR_KIND_IN), intent(in) :: sec   ! ymd
     character(*)        ,intent(in)  :: calendar  ! calendar type
-
+    integer, intent(out), optional   :: rc
     !EOP
 
     integer(SHR_KIND_IN) :: year,month,day
     type(ESMF_CALKIND_FLAG) :: calkind
     character(len=shr_cal_calMaxLen) :: lcalendar
-    integer :: rc
+    integer :: lrc
     character(*),parameter :: subName = "(shr_cal_timeSet_long)"
 
     !-------------------------------------------------------------------------------
@@ -295,9 +299,12 @@ contains
     endif
 
     call shr_cal_date2ymd(ymd,year,month,day)
-    call ESMF_TimeSet(etime,yy=year,mm=month,dd=day,s=sec,calkindflag=calkind,rc=rc)
-    if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
-
+    call ESMF_TimeSet(etime,yy=year,mm=month,dd=day,s=sec,calkindflag=calkind,rc=lrc)
+    if(present(rc)) then
+       rc = lrc
+    else if(rc /= ESMF_SUCCESS) then
+       call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+    endif
   end subroutine shr_cal_timeSet_long
   !===============================================================================
   !BOP ===========================================================================
@@ -1363,6 +1370,45 @@ contains
 
   end subroutine shr_cal_ymdtod2string
 
+  !===============================================================================
+  subroutine shr_cal_ymds2rday_offset(etime, rdays_offset, &
+       years_offset, months_offset, days_offset, seconds_offset)
+    ! Given the current time (etime) and optional year, month, day and seconds offsets
+    ! from the current time: Return an offset from the current time given in fractional
+    ! days.
+    !
+    ! For example, if day_offset = -2 and seconds_offset = -21600, then rday_offset will
+    ! be -2.25.
+
+    ! !INPUT/OUTPUT PARAMETERS:
+
+    type(ESMF_Time), intent(in) :: etime  ! current time
+    real(SHR_KIND_R8), intent(out) :: rdays_offset  ! offset from current time in fractional days
+
+    ! One or more of the following optional arguments should be provided:
+    integer(SHR_KIND_IN), intent(in), optional :: years_offset   ! number of years offset from current time
+    integer(SHR_KIND_IN), intent(in), optional :: months_offset  ! number of months offset from current time
+    integer(SHR_KIND_IN), intent(in), optional :: days_offset    ! number of days offset from current time
+    integer(SHR_KIND_IN), intent(in), optional :: seconds_offset ! number of seconds offset from current time
+
+    !--- local ---
+    type(ESMF_TimeInterval) :: timeinterval
+    integer :: rc
+
+    !-------------------------------------------------------------------------------
+
+    call ESMF_TimeIntervalSet(timeinterval = timeinterval, &
+         startTime = etime, &
+         YY = years_offset, &
+         MM = months_offset, &
+         D  = days_offset, &
+         S  = seconds_offset, &
+         rc = rc)
+    if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+    call ESMF_TimeIntervalGet(timeinterval = timeinterval, d_r8 = rdays_offset, rc = rc)
+    if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  end subroutine shr_cal_ymds2rday_offset
 
   !===============================================================================
 end module shr_cal_mod

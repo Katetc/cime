@@ -69,46 +69,40 @@ using a fortran linker.
      compilers -->
 <compiler>
   <CPPDEFS>
-    <append> -D<env>OS</env> </append>
+    <!-- This should be removed AFTER MOM6 cap is fully unified -->
+    <append> -DCESMCOUPLED </append>
     <append MODEL="pop"> -D_USE_FLOW_CONTROL </append>
+    <append MODEL="ufsatm"> -DSPMD </append>
   </CPPDEFS>
+
+  <INCLDIR>
+        <append MODEL="ufsatm"> -I$(EXEROOT)/atm/obj/FMS </append>
+  </INCLDIR>
+  <FFLAGS>
+    <append MODEL="ufsatm"> $(FC_AUTO_R8) </append>
+    <append MODEL="mom"> $(FC_AUTO_R8) -Duse_LARGEFILE</append>
+  </FFLAGS>
   <SUPPORTS_CXX>FALSE</SUPPORTS_CXX>
 </compiler>
 
-<compiler COMPILER="cray">
-  <CFLAGS>
-    <append compile_threaded="false"> -h noomp </append>
-    <append DEBUG="TRUE"> -g -O0 </append>
-    <append DEBUG="FALSE"> -O2 </append>
-  </CFLAGS>
+<compiler COMPILER="arm">
+  <!-- LLVM compiler support is a work in progess -->
+  <MPICC> mpicc  </MPICC>
+  <MPICXX> mpicxx </MPICXX>
+  <MPIFC> mpif90 </MPIFC>
+  <SCC> clang </SCC>
+  <SCXX> clang++ </SCXX>
+  <SFC> flang </SFC>
   <CPPDEFS>
-    <!--http://docs.cray.com/cgi-bin/craydoc.cgi?mode=View;id=S-3901-83;idx=books_search;this_sort=;q=;type=books;title=Cray%20Fortran%20Reference%20Manual -->
-    <append> -DFORTRANUNDERSCORE -DNO_R16 -DCPRCRAY</append>
-    <append MODEL="pop"> -DDIR=NOOP </append>
-    <append MODEL="moby"> -DDIR=NOOP </append>
+    <append> -DCPRLLVM</append>
+    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY  </append>
   </CPPDEFS>
-  <FC_AUTO_R8>
-    <base> -s real64 </base>
-  </FC_AUTO_R8>
-  <FFLAGS>
-    <base> -f free -N 255  -h byteswapio -x dir </base>
-    <append compile_threaded="false"> -h noomp </append>
-    <append DEBUG="TRUE"> -g -O0 -K trap=fp  -m1 </append>
-    <append DEBUG="FALSE"> -O2,ipa2 -em </append>
-  </FFLAGS>
-  <FFLAGS_NOOPT>
-    <base> -O1,fp2,ipa0,scalar0,vector0 </base>
-  </FFLAGS_NOOPT>
-  <HAS_F2008_CONTIGUOUS>TRUE</HAS_F2008_CONTIGUOUS>
-  <LDFLAGS>
-    <base> -Wl,--allow-multiple-definition -h byteswapio </base>
-  </LDFLAGS>
 </compiler>
 
-<compiler COMPILER="gnu">
+<compiler COMPILER="armgcc">
   <CFLAGS>
     <base> -std=gnu99 </base>
-    <append compile_threaded="true"> -fopenmp </append>
+    <append compile_threaded="TRUE"> -fopenmp </append>
     <append DEBUG="TRUE"> -g -Wall -Og -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=bounds </append>
     <append DEBUG="FALSE"> -O </append>
   </CFLAGS>
@@ -124,7 +118,7 @@ using a fortran linker.
     <!-- -ffree-line-length-none and -ffixed-line-length-none need to be in FFLAGS rather than in FIXEDFLAGS/FREEFLAGS
        so that these are passed to cmake builds (cmake builds don't use FIXEDFLAGS and FREEFLAGS). -->
     <base>  -fconvert=big-endian -ffree-line-length-none -ffixed-line-length-none </base>
-    <append compile_threaded="true"> -fopenmp </append>
+    <append compile_threaded="TRUE"> -fopenmp </append>
     <!-- Ideally, we would also have 'invalid' in the ffpe-trap list. But at
          least with some versions of gfortran (confirmed with 5.4.0, 6.3.0 and
          7.1.0), gfortran's isnan (which is called in cime via the
@@ -144,7 +138,90 @@ using a fortran linker.
   </FREEFLAGS>
   <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
   <LDFLAGS>
-    <append compile_threaded="true"> -fopenmp </append>
+    <append compile_threaded="TRUE"> -fopenmp </append>
+  </LDFLAGS>
+  <MPICC> mpicc  </MPICC>
+  <MPICXX> mpicxx </MPICXX>
+  <MPIFC> mpif90 </MPIFC>
+  <SCC> gcc </SCC>
+  <SCXX> g++ </SCXX>
+  <SFC> gfortran </SFC>
+  <SUPPORTS_CXX>TRUE</SUPPORTS_CXX>
+</compiler>
+
+
+
+
+<compiler COMPILER="cray">
+  <CFLAGS>
+    <append compile_threaded="FALSE"> -h noomp </append>
+    <append DEBUG="TRUE"> -g -O0 </append>
+    <append DEBUG="FALSE"> -O2 </append>
+  </CFLAGS>
+  <CPPDEFS>
+    <!--http://docs.cray.com/cgi-bin/craydoc.cgi?mode=View;id=S-3901-83;idx=books_search;this_sort=;q=;type=books;title=Cray%20Fortran%20Reference%20Manual -->
+    <append> -DFORTRANUNDERSCORE -DNO_R16 -DCPRCRAY</append>
+    <append MODEL="pop"> -DDIR=NOOP </append>
+    <append MODEL="moby"> -DDIR=NOOP </append>
+  </CPPDEFS>
+  <FC_AUTO_R8>
+    <base> -s real64 </base>
+  </FC_AUTO_R8>
+  <FFLAGS>
+    <base> -f free -N 255  -h byteswapio -x dir </base>
+    <append compile_threaded="FALSE"> -h noomp </append>
+    <append DEBUG="TRUE"> -g -O0 -K trap=fp  -m1 </append>
+    <append DEBUG="FALSE"> -O2,ipa2 -em </append>
+  </FFLAGS>
+  <FFLAGS_NOOPT>
+    <base> -O1,fp2,ipa0,scalar0,vector0 </base>
+  </FFLAGS_NOOPT>
+  <HAS_F2008_CONTIGUOUS>TRUE</HAS_F2008_CONTIGUOUS>
+  <LDFLAGS>
+    <base> -Wl,--allow-multiple-definition -h byteswapio </base>
+  </LDFLAGS>
+</compiler>
+
+<compiler COMPILER="gnu">
+  <CFLAGS>
+    <base> -std=gnu99 </base>
+    <append compile_threaded="TRUE"> -fopenmp </append>
+    <append DEBUG="TRUE"> -g -Wall -Og -fbacktrace -ffpe-trap=invalid,zero,overflow -fcheck=bounds </append>
+    <append DEBUG="FALSE"> -O </append>
+  </CFLAGS>
+  <CPPDEFS>
+    <!-- http://gcc.gnu.org/onlinedocs/gfortran/ -->
+    <append> -DFORTRANUNDERSCORE -DNO_R16 -DCPRGNU</append>
+  </CPPDEFS>
+  <CXX_LINKER>FORTRAN</CXX_LINKER>
+  <FC_AUTO_R8>
+    <base> -fdefault-real-8 </base>
+  </FC_AUTO_R8>
+  <FFLAGS>
+    <!-- -ffree-line-length-none and -ffixed-line-length-none need to be in FFLAGS rather than in FIXEDFLAGS/FREEFLAGS
+       so that these are passed to cmake builds (cmake builds don't use FIXEDFLAGS and FREEFLAGS). -->
+    <base>  -fconvert=big-endian -ffree-line-length-none -ffixed-line-length-none </base>
+    <append compile_threaded="TRUE"> -fopenmp </append>
+    <!-- Ideally, we would also have 'invalid' in the ffpe-trap list. But at
+         least with some versions of gfortran (confirmed with 5.4.0, 6.3.0 and
+         7.1.0), gfortran's isnan (which is called in cime via the
+         CPRGNU-specific shr_infnan_isnan) causes a floating point exception
+         when called on a signaling NaN. -->
+    <append DEBUG="TRUE"> -g -Wall -Og -fbacktrace -ffpe-trap=zero,overflow -fcheck=bounds </append>
+    <append DEBUG="FALSE"> -O </append>
+  </FFLAGS>
+  <FFLAGS_NOOPT>
+    <base> -O0 </base>
+  </FFLAGS_NOOPT>
+  <FIXEDFLAGS>
+    <base>  -ffixed-form </base>
+  </FIXEDFLAGS>
+  <FREEFLAGS>
+    <base> -ffree-form </base>
+  </FREEFLAGS>
+  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
+  <LDFLAGS>
+    <append compile_threaded="TRUE"> -fopenmp </append>
   </LDFLAGS>
   <MPICC> mpicc  </MPICC>
   <MPICXX> mpicxx </MPICXX>
@@ -159,8 +236,8 @@ using a fortran linker.
   <CFLAGS>
     <base> -g -qfullpath -qmaxmem=-1 </base>
     <append DEBUG="FALSE"> -O3  </append>
-    <append compile_threaded="true"> -qsmp=omp </append>
-    <append DEBUG="TRUE" compile_threaded="true"> -qsmp=omp:noopt </append>
+    <append compile_threaded="TRUE"> -qsmp=omp </append>
+    <append DEBUG="TRUE" compile_threaded="TRUE"> -qsmp=omp:noopt </append>
   </CFLAGS>
   <CPPDEFS>
     <!-- http://publib.boulder.ibm.com/infocenter/comphelp/v7v91/index.jsp
@@ -189,9 +266,9 @@ using a fortran linker.
   <FFLAGS>
     <base> -g -qfullpath -qmaxmem=-1 </base>
     <append DEBUG="FALSE"> -O2 -qstrict -qinline=auto </append>
-    <append compile_threaded="true"> -qsmp=omp </append>
+    <append compile_threaded="TRUE"> -qsmp=omp </append>
     <append DEBUG="TRUE"> -qinitauto=7FF7FFFF -qflttrap=ov:zero:inv:en </append>
-    <append DEBUG="TRUE" compile_threaded="true"> -qsmp=omp:noopt </append>
+    <append DEBUG="TRUE" compile_threaded="TRUE"> -qsmp=omp:noopt </append>
     <append DEBUG="TRUE" MODEL="pop"> -C </append>
   </FFLAGS>
   <FIXEDFLAGS>
@@ -202,15 +279,15 @@ using a fortran linker.
   </FREEFLAGS>
   <HAS_F2008_CONTIGUOUS>TRUE</HAS_F2008_CONTIGUOUS>
   <LDFLAGS>
-    <append compile_threaded="true"> -qsmp=omp </append>
-    <append DEBUG="TRUE" compile_threaded="true"> -qsmp=omp:noopt </append>
+    <append compile_threaded="TRUE"> -qsmp=omp </append>
+    <append DEBUG="TRUE" compile_threaded="TRUE"> -qsmp=omp:noopt </append>
   </LDFLAGS>
 </compiler>
 
 <compiler COMPILER="intel">
   <CFLAGS>
     <base>  -qno-opt-dynamic-align -fp-model precise -std=gnu99 </base>
-    <append compile_threaded="true"> -qopenmp </append>
+    <append compile_threaded="TRUE"> -qopenmp </append>
     <append DEBUG="FALSE"> -O2 -debug minimal </append>
     <append DEBUG="TRUE"> -O0 -g </append>
   </CFLAGS>
@@ -227,23 +304,21 @@ using a fortran linker.
   </FC_AUTO_R8>
   <FFLAGS>
     <base> -qno-opt-dynamic-align  -convert big_endian -assume byterecl -ftz -traceback -assume realloc_lhs -fp-model source  </base>
-    <append compile_threaded="true"> -qopenmp </append>
+    <append compile_threaded="TRUE"> -qopenmp </append>
     <append DEBUG="TRUE"> -O0 -g -check uninit -check bounds -check pointers -fpe0 -check noarg_temp_created </append>
     <append DEBUG="FALSE"> -O2 -debug minimal </append>
   </FFLAGS>
   <FFLAGS_NOOPT>
     <base> -O0 </base>
-    <append compile_threaded="true"> -qopenmp </append>
   </FFLAGS_NOOPT>
   <FIXEDFLAGS>
-    <base> -fixed -132 </base>
+    <base> -fixed  </base>
   </FIXEDFLAGS>
   <FREEFLAGS>
     <base> -free </base>
   </FREEFLAGS>
-  <HAS_F2008_CONTIGUOUS>TRUE</HAS_F2008_CONTIGUOUS>
   <LDFLAGS>
-    <append compile_threaded="true"> -qopenmp </append>
+    <append compile_threaded="TRUE"> -qopenmp </append>
   </LDFLAGS>
   <MPICC> mpicc  </MPICC>
   <MPICXX> mpicxx </MPICXX>
@@ -284,7 +359,7 @@ using a fortran linker.
     <!-- The "-gline" option is nice, but it doesn't work with OpenMP.         -->
     <!-- Runtime checks with OpenMP (in fact, all OpenMP cases) are WIP.       -->
     <append DEBUG="TRUE"> -C=all -g -time -f2003 -ieee=stop </append>
-    <append DEBUG="TRUE" compile_threaded="false"> -gline </append>
+    <append DEBUG="TRUE" compile_threaded="FALSE"> -gline </append>
     <!-- The SLAP library (which is part of the CISM build) has many instances of
        arguments being passed to different types. So disable argument type
        checking when building CISM. This can be removed once we remove SLAP from
@@ -292,13 +367,7 @@ using a fortran linker.
     <append MODEL="cism"> -mismatch_all </append>
   </FFLAGS>
   <FFLAGS_NOOPT>
-    <base>-Wp,-macro=no_com -convert=BIG_ENDIAN -indirect $ENV{CIMEROOT}/config/cesm/machines/nag_mpi_argument.txt</base>
-    <append DEBUG="FALSE"> -ieee=full     </append>
-    <!-- Hack! If DEBUG="TRUE", put runtime checks in FFLAGS, but not into     -->
-    <!-- FFLAGS_NOOPT, allowing strict checks to be removed from files by      -->
-    <!-- having them use FFLAGS_NOOPT in Depends.nag                           -->
-    <append DEBUG="TRUE"> -g -time -f2003 -ieee=stop </append>
-    <append DEBUG="TRUE" compile_threaded="false"> -gline        </append>
+    <base> -O0 </base>
   </FFLAGS_NOOPT>
   <FIXEDFLAGS>
     <base> -fixed </base>
@@ -311,12 +380,20 @@ using a fortran linker.
   <MPIFC> mpif90 </MPIFC>
   <SCC> gcc </SCC>
   <SFC> nagfor </SFC>
+
+  <LDFLAGS>
+    <append> -lpthread </append>
+  </LDFLAGS>
+  <CONFIG_ARGS>
+    <append> FCLIBS="-Wl,--as-needed,--allow-shlib-undefined  -L$(COMPILER_PATH)/lib/NAG_Fortran -lf62rts" </append>
+  </CONFIG_ARGS>
 </compiler>
+
 
 <compiler COMPILER="pgi">
   <CFLAGS>
     <base> -gopt  -time </base>
-    <append compile_threaded="true"> -mp </append>
+    <append compile_threaded="TRUE"> -mp </append>
   </CFLAGS>
   <CPPDEFS>
     <!-- http://www.pgroup.com/resources/docs.htm                                              -->
@@ -352,7 +429,7 @@ using a fortran linker.
   </FC_AUTO_R8>
   <FFLAGS>
     <base>  -i4 -gopt  -time -Mextend -byteswapio -Mflushz -Kieee  </base>
-    <append compile_threaded="true"> -mp </append>
+    <append compile_threaded="TRUE"> -mp </append>
     <append DEBUG="TRUE"> -O0 -g -Ktrap=fp -Mbounds -Kieee </append>
     <append MODEL="datm"> -Mnovect </append>
     <append MODEL="dlnd"> -Mnovect </append>
@@ -362,8 +439,7 @@ using a fortran linker.
     <append MODEL="docn"> -Mnovect </append>
   </FFLAGS>
   <FFLAGS_NOOPT>
-    <base> -O0 -g -Ktrap=fp -Mbounds -Kieee  </base>
-    <append compile_threaded="true"> -mp </append>
+    <base> -O0 </base>
   </FFLAGS_NOOPT>
   <FIXEDFLAGS>
     <base> -Mfixed </base>
@@ -380,7 +456,7 @@ using a fortran linker.
   <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
   <LDFLAGS>
     <base> -time -Wl,--allow-multiple-definition </base>
-    <append compile_threaded="true"> -mp </append>
+    <append compile_threaded="TRUE"> -mp </append>
   </LDFLAGS>
   <MPICC> mpicc </MPICC>
   <MPICXX> mpicxx </MPICXX>
@@ -423,8 +499,8 @@ using a fortran linker.
   <FFLAGS>
     <base> -g -qfullpath -qmaxmem=-1 -qspillsize=2500 -qextname=flush </base>
     <append DEBUG="FALSE"> -O3 -qstrict -qinline=auto </append>
-    <append DEBUG="FALSE" compile_threaded="true"> -qsmp=omp </append>
-    <append DEBUG="TRUE" compile_threaded="true"> -qsmp=omp:noopt </append>
+    <append DEBUG="FALSE" compile_threaded="TRUE"> -qsmp=omp </append>
+    <append DEBUG="TRUE" compile_threaded="TRUE"> -qsmp=omp:noopt </append>
   </FFLAGS>
   <LDFLAGS>
     <base>  -Wl,--relax -Wl,--allow-multiple-definition </base>
@@ -458,8 +534,67 @@ using a fortran linker.
 
 <compiler OS="Darwin" COMPILER="intel">
   <FFLAGS>
-    <append compile_threaded="false"> -heap-arrays </append>
+    <append compile_threaded="FALSE"> -heap-arrays </append>
   </FFLAGS>
+</compiler>
+
+<compiler MACH="aleph" COMPILER="intel">
+  <CONFIG_ARGS>
+    <base> --host=Linux </base>
+  </CONFIG_ARGS>
+  <CFLAGS>
+    <append> -xCORE-AVX2 </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append> -xCORE-AVX2 </append>
+  </FFLAGS>
+  <SLIBS>
+    <append> -L$(NETCDF_DIR) -lnetcdff -Wl,--as-needed,-L$(NETCDF_DIR)/lib -lnetcdff -lnetcdf </append>
+  </SLIBS>
+  <CPPDEFS>
+    <append MODEL="gptl"> -DHAVE_PAPI -DHAVE_SLASHPROC </append>
+  </CPPDEFS>
+  <LDFLAGS>
+    <append>-mkl </append>
+  </LDFLAGS>
+</compiler>
+
+<compiler MACH="athena">
+  <CPPDEFS>
+    <!-- these flags enable nano timers -->
+    <append MODEL="gptl"> -DHAVE_NANOTIME -DBIT64 -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
+  <AR>xiar</AR>
+  <ARFLAGS>
+    <base>cru</base>
+  </ARFLAGS>
+</compiler>
+
+<compiler MACH="athena" COMPILER="intel">
+  <CFLAGS>
+    <append>  -xHost </append>
+  </CFLAGS>
+  <CPPDEFS>
+    <append> -DINTEL_MKL -DHAVE_SSE2 </append>
+  </CPPDEFS>
+  <FFLAGS>
+    <append>  -xHost </append>
+  </FFLAGS>
+  <FFLAGS>
+    <append MODEL="nemo"> $(FC_AUTO_R8) -O3 -assume norealloc_lhs </append>
+  </FFLAGS>
+  <SLIBS>
+    <append> $SHELL{${NETCDF_PATH}/bin/nc-config --flibs}</append>
+  </SLIBS>
+  <MPICXX MPILIB="mpich2">mpiicpc</MPICXX>
+  <MPICC MPILIB="mpich2">mpiicc</MPICC>
+  <MPIFC MPILIB="mpich2">mpiifort</MPIFC>
+  <SCC>icc</SCC>
+  <SFC>ifort</SFC>
+  <TRILINOS_PATH MPILIB="mpich2">$ENV{TRILINOS_PATH}</TRILINOS_PATH>
 </compiler>
 
 <compiler MACH="bluewaters">
@@ -467,6 +602,16 @@ using a fortran linker.
     <append MODEL="gptl"> -DHAVE_PAPI </append>
   </CPPDEFS>
   <PIO_FILESYSTEM_HINTS>lustre</PIO_FILESYSTEM_HINTS>
+</compiler>
+
+<compiler MACH="bluewaters" COMPILER="intel">
+  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
+  <FFLAGS>
+    <append> -dynamic -mkl=sequential -no-fma</append>
+  </FFLAGS>
+  <CFLAGS>
+    <append> -dynamic -mkl=sequential -no-fma</append>
+  </CFLAGS>
 </compiler>
 
 <compiler MACH="bluewaters" COMPILER="pgi">
@@ -482,6 +627,96 @@ using a fortran linker.
     <append> -nofma </append>
   </FFLAGS>
   <SUPPORTS_CXX>TRUE</SUPPORTS_CXX>
+</compiler>
+
+<compiler MACH="daint" COMPILER="pgi">
+  <FFLAGS>
+    <append> -I/project/s824/edavin/OASIS3-MCT_2.0/build.pgi/build/lib/mct -I/project/s824/edavin/OASIS3-MCT_2.0/build.pgi/build/lib/psmile.MPI1 </append>
+  </FFLAGS>
+  <SLIBS>
+    <append> -llapack -lblas </append>
+    <append> -L/project/s824/edavin/OASIS3-MCT_2.0/build.pgi/lib -lpsmile.MPI1 -lscrip -lmct_oasis -lmpeu_oasis </append>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="daint" COMPILER="cray">
+  <FFLAGS>
+    <append> -I/project/s824/edavin/OASIS3-MCT_2.0/build.cray/build/lib/mct -I/project/s824/edavin/OASIS3-MCT_2.0/build.cray/build/lib/psmile.MPI1 </append>
+  </FFLAGS>
+  <SLIBS>
+    <append> -L/project/s824/edavin/OASIS3-MCT_2.0/build.cray/lib -lpsmile.MPI1 -lscrip -lmct_oasis -lmpeu_oasis </append>
+  </SLIBS>
+</compiler>
+<compiler MACH="centos7-linux">
+  <SLIBS>
+    <append>-L$(NETCDF_PATH)/lib -Wl,-rpath,$(NETCDF_PATH)/lib -lnetcdff -lnetcdf </append>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="casper" COMPILER="pgi">
+  <FFLAGS>
+    <append> -Mnofma -acc -ta=tesla:cc70 -Minfo=accel </append>
+    <append> -I$(EXEROOT)/ocn/obj/FMS </append>
+  </FFLAGS>
+  <CFLAGS>
+    <append> -Mnofma -acc -ta=tesla:cc70 -Minfo=accel </append>
+  </CFLAGS>
+  <LDFLAGS>
+    <append> -acc -ta=tesla:cc70 -Minfo=accel </append>
+  </LDFLAGS>
+  <SLIBS>
+    <append> -llapack -lblas -ldl </append>
+    <append MPILIB="mpi-serial"> -ldl </append>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="cheyenne">
+  <CPPDEFS>
+    <!-- these flags enable nano timers -->
+    <append MODEL="gptl"> -DHAVE_NANOTIME -DBIT64 -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
+</compiler>
+
+<compiler MACH="cheyenne" COMPILER="gnu">
+  <CPPDEFS>
+    <append MODEL="pio1"> -DNO_MPIMOD </append>
+  </CPPDEFS>
+  <SLIBS>
+    <append> -ldl </append>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="cheyenne" COMPILER="intel">
+  <CFLAGS>
+    <append> -qopt-report -xCORE_AVX2 -no-fma</append>
+  </CFLAGS>
+  <FFLAGS>
+    <append> -qopt-report -xCORE_AVX2 -no-fma</append>
+  </FFLAGS>
+  <CMAKE_OPTS>
+    <append DEBUG="TRUE"> -DPIO_ENABLE_LOGGING=ON </append>
+  </CMAKE_OPTS>
+  <PFUNIT_PATH MPILIB="mpi-serial" compile_threaded="FALSE">$ENV{CESMDATAROOT}/tools/pFUnit/pFUnit3.2.8_cheyenne_Intel17.0.1_noMPI_noOpenMP</PFUNIT_PATH>
+  <PFUNIT_PATH MPILIB="mpt" compile_threaded="TRUE">$ENV{CESMDATAROOT}/tools/pFUnit/pFUnit3.2.8_cheyenne_Intel17.0.1_MPI_openMP</PFUNIT_PATH>
+  <!-- SET to FALSE for intel 17 and 18 TRUE otherwise -->
+  <HAS_F2008_CONTIGUOUS>TRUE</HAS_F2008_CONTIGUOUS>
+</compiler>
+
+<compiler MACH="cheyenne" COMPILER="pgi">
+  <SLIBS>
+    <append> -llapack -lblas </append>
+    <append MPILIB="mpi-serial"> -ldl </append>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="coeus" COMPILER="gnu">
+  <NETCDF_PATH>/vol/apps/hpc/stow/netcdf/4.4.1.1/gcc-6.3.0</NETCDF_PATH>
+  <SLIBS>
+    <base> -L${NETCDF_PATH}/lib -lnetcdf -lnetcdff -lpmi </base>
+  </SLIBS>
 </compiler>
 
 <compiler MACH="constance" COMPILER="intel">
@@ -538,7 +773,7 @@ using a fortran linker.
     <append> -L$(NETCDF_DIR) -lnetcdff -Wl,--as-needed,-L$(NETCDF_DIR)/lib -lnetcdff -lnetcdf </append>
   </SLIBS>
     <CPPDEFS>
-    <append MODEL="gptl"> -DHAVE_PAPI -DHAVE_SLASHPROC </append>
+    <append MODEL="gptl"> -DHAVE_SLASHPROC </append>
   </CPPDEFS>
   <LDFLAGS>
     <append>-mkl </append>
@@ -546,7 +781,6 @@ using a fortran linker.
   <!-- Bug in the intel/17.0.1 compiler requires this, remove this line when compiler is updated -->
   <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
 </compiler>
-
 
 <compiler MACH="cori-knl" COMPILER="intel">
   <CONFIG_ARGS>
@@ -571,7 +805,6 @@ using a fortran linker.
   <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
 </compiler>
 
-
 <compiler MACH="eastwind" COMPILER="intel">
   <CFLAGS>
     <append DEBUG="FALSE"> -O2 </append>
@@ -595,7 +828,7 @@ using a fortran linker.
 <compiler MACH="eastwind" COMPILER="pgi">
   <CFLAGS>
     <append DEBUG="FALSE"> -O2 </append>
-    <append compile_threaded="false"> -nomp </append>
+    <append compile_threaded="FALSE"> -nomp </append>
   </CFLAGS>
   <CONFIG_ARGS>
     <base> --host=Linux </base>
@@ -605,10 +838,10 @@ using a fortran linker.
   </CPPDEFS>
   <FFLAGS>
     <append DEBUG="FALSE"> -O2 </append>
-    <append compile_threaded="false"> -nomp </append>
+    <append compile_threaded="FALSE"> -nomp </append>
   </FFLAGS>
   <LDFLAGS>
-    <append compile_threaded="false"> -nomp </append>
+    <append compile_threaded="FALSE"> -nomp </append>
   </LDFLAGS>
   <NETCDF_PATH> $ENV{NETCDF_HOME}</NETCDF_PATH>
   <PIO_FILESYSTEM_HINTS>lustre</PIO_FILESYSTEM_HINTS>
@@ -635,22 +868,103 @@ using a fortran linker.
   </SLIBS>
 </compiler>
 
-<compiler MACH="hera" COMPILER="pgi">
+<compiler MACH="euler2">
+  <CPPDEFS>
+    <append> -DLINUX </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>lustre</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
+  <SLIBS>
+    <base> -L$ENV{NETCDF}/lib -lnetcdf -lnetcdff </base>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="euler2" COMPILER="intel">
+  <CFLAGS>
+    <append DEBUG="FALSE"> -xCORE-AVX2 </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append DEBUG="FALSE"> -xCORE-AVX2 </append>
+  </FFLAGS>
+  <LDFLAGS>
+    <append> -mkl </append>
+  </LDFLAGS>
+</compiler>
+
+<compiler MACH="euler2" COMPILER="pgi">
   <CFLAGS>
     <append DEBUG="FALSE"> -O2 </append>
   </CFLAGS>
   <FFLAGS>
     <append DEBUG="FALSE"> -O2 </append>
   </FFLAGS>
-  <LDFLAGS>
-    <append> -Wl,-rpath /usr/local/tools/netcdf-pgi-4.1.3/lib</append>
-  </LDFLAGS>
-  <MPI_LIB_NAME> mpich</MPI_LIB_NAME>
-  <MPI_PATH>/usr/local/tools/mvapich2-pgi-1.7/</MPI_PATH>
-  <NETCDF_PATH>/usr/local/tools/netcdf-pgi-4.1.3</NETCDF_PATH>
+</compiler>
+
+<compiler MACH="euler3">
+  <CPPDEFS>
+    <append> -DLINUX </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>lustre</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
   <SLIBS>
-    <append>$SHELL{/usr/local/tools/netcdf-pgi-4.1.3/bin/nc-config --flibs}</append>
+    <base> -L$ENV{NETCDF}/lib -lnetcdf -lnetcdff </base>
   </SLIBS>
+</compiler>
+
+<compiler MACH="euler3" COMPILER="intel">
+  <CFLAGS>
+    <append DEBUG="FALSE"> -xCORE-AVX2 </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append DEBUG="FALSE"> -xCORE-AVX2 </append>
+  </FFLAGS>
+  <LDFLAGS>
+    <append> -mkl </append>
+  </LDFLAGS>
+</compiler>
+
+<compiler MACH="euler3" COMPILER="pgi">
+  <CFLAGS>
+    <append DEBUG="FALSE"> -O2 </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append DEBUG="FALSE"> -O2 </append>
+  </FFLAGS>
+</compiler>
+
+<compiler MACH="euler4">
+  <CPPDEFS>
+    <append> -DLINUX </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>lustre</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
+  <SLIBS>
+    <base> -L$ENV{NETCDF}/lib -lnetcdf -lnetcdff </base>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="euler4" COMPILER="intel">
+  <CFLAGS>
+    <append DEBUG="FALSE"> -xCORE-AVX2 </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append DEBUG="FALSE"> -xCORE-AVX2 </append>
+  </FFLAGS>
+  <LDFLAGS>
+    <append> -mkl </append>
+  </LDFLAGS>
+</compiler>
+
+<compiler MACH="euler4" COMPILER="pgi">
+  <CFLAGS>
+    <append DEBUG="FALSE"> -O2 </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append DEBUG="FALSE"> -O2 </append>
+  </FFLAGS>
 </compiler>
 
 <compiler MACH="hobart">
@@ -663,6 +977,22 @@ using a fortran linker.
   <SLIBS>
     <append>-L$NETCDF_PATH/lib -lnetcdff -lnetcdf</append>
   </SLIBS>
+</compiler>
+
+<compiler MACH="izumi">
+  <CPPDEFS>
+    <append MODEL="gptl"> -DHAVE_NANOTIME -DBIT64 -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
+  <LAPACK_LIBDIR> /usr/lib64 </LAPACK_LIBDIR>
+  <MPI_LIB_NAME MPILIB="mvapich2"> mpich</MPI_LIB_NAME>
+  <NETCDF_PATH>$ENV{NETCDF_PATH}</NETCDF_PATH>
+  <SLIBS>
+    <append>-L$NETCDF_PATH/lib -lnetcdff -lnetcdf</append>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="izumi" COMPILER="intel">
+  <PFUNIT_PATH MPILIB="mpi-serial" compile_threaded="FALSE">/fs/cgd/csm/tools/pFUnit/pFUnit3.3.3_izumi_Intel19.0.1_noMPI_noOpenMP</PFUNIT_PATH>
 </compiler>
 
 <compiler MACH="hobart" COMPILER="intel">
@@ -684,20 +1014,7 @@ using a fortran linker.
   <SLIBS>
     <append MPILIB="mvapich2"> -mkl=cluster </append>
   </SLIBS>
-  <PFUNIT_PATH MPILIB="mpi-serial" compile_threaded="false">/fs/cgd/csm/tools/pFUnit/pFUnit3.2.8_hobart_Intel15.0.2_noMPI_noOpenMP</PFUNIT_PATH>
-</compiler>
-
-<compiler MACH="hobart" COMPILER="nag">
-  <CPPDEFS>
-    <!-- needed for nag pio build.. -->
-    <append> -DNO_C_SIZEOF </append>
-  </CPPDEFS>
-  <LDFLAGS>
-    <append> -lpthread</append>
-  </LDFLAGS>
-  <SLIBS>
-    <append> -L/usr/local/nag/lib/NAG_Fortran </append>
-  </SLIBS>
+  <PFUNIT_PATH MPILIB="mpi-serial" compile_threaded="FALSE">/fs/cgd/csm/tools/pFUnit/pFUnit3.2.8_hobart_Intel15.0.2_noMPI_noOpenMP</PFUNIT_PATH>
 </compiler>
 
 <compiler MACH="hobart" COMPILER="pgi">
@@ -717,8 +1034,7 @@ using a fortran linker.
 
 <compiler MACH="hobart" COMPILER="gnu">
   <SLIBS>
-    <append> -lm </append>
-    <append> -ldl </append>
+    <append> -lm -ldl</append>
   </SLIBS>
 </compiler>
 
@@ -726,21 +1042,63 @@ using a fortran linker.
   <LDFLAGS>
     <!-- These LDFLAGS provide lapack and blas support on a Mac. This
          may require installation of the Apple Developer Tools. -->
-    <append> -framework Accelerate </append>
+    <append> -framework Accelerate -Wl,-rpath $(NETCDF)/lib</append>
   </LDFLAGS>
 </compiler>
 
-<compiler MACH="juqueen" COMPILER="ibm">
-  <MPICC> mpixlc_r </MPICC>
-  <MPIFC> mpixlf2003_r </MPIFC>
-  <NETCDF_PATH> /bgsys/local/netcdf/</NETCDF_PATH>
-  <PIO_FILESYSTEM_HINTS>gpfs </PIO_FILESYSTEM_HINTS>
-  <PNETCDF_PATH> /bgsys/local/parallel-netcdf/v1.3.1</PNETCDF_PATH>
-  <SCC> mpixlc_r </SCC>
-  <SFC> mpixlf2003_r </SFC>
+<compiler MACH="laramie">
+  <CPPDEFS>
+    <!-- these flags enable nano timers -->
+    <append MODEL="gptl"> -DHAVE_NANOTIME -DBIT64 -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
+</compiler>
+<compiler MACH="laramie" COMPILER="intel">
+  <CFLAGS>
+    <append> -vec-report </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append> -vec-report </append>
+  </FFLAGS>
+  <CMAKE_OPTS>
+    <append DEBUG="TRUE"> -DPIO_ENABLE_LOGGING=ON </append>
+  </CMAKE_OPTS>
+</compiler>
+
+<compiler COMPILER="intel" MACH="lawrencium-lr3">
+  <CPPDEFS>
+    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
   <SLIBS>
-    <append>-L/bgsys/local/netcdf/lib -lnetcdf -L/bgsys/drivers/ppcfloor/comm/lib </append>
+    <append> -lnetcdff -lnetcdf -mkl </append>
   </SLIBS>
+  <FFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </FFLAGS>
+  <CFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </CFLAGS>
+  <NETCDF_PATH>$ENV{NETCDF_DIR}</NETCDF_PATH>
+  <LAPACK_LIBDIR>/global/software/sl-6.x86_64/modules/intel/2016.1.150/lapack/3.6.0-intel/lib</LAPACK_LIBDIR>
+</compiler>
+
+<compiler COMPILER="intel" MACH="lawrencium-lr2">
+  <CPPDEFS>
+    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
+  <SLIBS>
+    <append> -lnetcdff -lnetcdf -mkl </append>
+  </SLIBS>
+  <FFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </FFLAGS>
+  <CFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </CFLAGS>
+  <NETCDF_PATH>$ENV{NETCDF_DIR}</NETCDF_PATH>
+  <LAPACK_LIBDIR>/global/software/sl-6.x86_64/modules/intel/2016.1.150/lapack/3.6.0-intel/lib</LAPACK_LIBDIR>
 </compiler>
 
 <compiler MACH="melvin" COMPILER="gnu">
@@ -787,6 +1145,16 @@ using a fortran linker.
   </SLIBS>
 </compiler>
 
+<compiler COMPILER="gnu" MACH="modex">
+  <SLIBS>
+    <append> -L$ENV{HDF5_HOME}/lib -lhdf5_fortran -lhdf5 -lhdf5_hl -lhdf5hl_fortran </append>
+    <append> -L$ENV{NETCDF_PATH}/lib/ -lnetcdff -lnetcdf -lcurl -lblas -llapack</append>
+  </SLIBS>
+  <CPPDEFS>
+     <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY -DHAVE_BACKTRACE </append>
+  </CPPDEFS>
+</compiler>
+
 <compiler MACH="olympus" COMPILER="pgi">
   <CFLAGS>
     <append DEBUG="FALSE"> -O2 </append>
@@ -818,7 +1186,7 @@ using a fortran linker.
   <SLIBS>
     <append>-L$ENV{NETCDF}/lib -lnetcdff -lnetcdf</append>
   </SLIBS>
-  <ESMF_LIBDIR>/home6/fvitt/esmf_7_0_0/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
+  <ESMF_LIBDIR>/home6/fvitt/esmf_7_1_0r/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
 </compiler>
 
 <compiler MACH="pleiades-has">
@@ -832,7 +1200,7 @@ using a fortran linker.
   <SLIBS>
     <append>-L$ENV{NETCDF}/lib -lnetcdff -lnetcdf</append>
   </SLIBS>
-  <ESMF_LIBDIR>/home6/fvitt/esmf_7_0_0/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
+  <ESMF_LIBDIR>/home6/fvitt/esmf_7_1_0r/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
 </compiler>
 
 <compiler MACH="pleiades-ivy">
@@ -846,7 +1214,7 @@ using a fortran linker.
   <SLIBS>
     <append>-L$ENV{NETCDF}/lib -lnetcdff -lnetcdf</append>
   </SLIBS>
-  <ESMF_LIBDIR>/home6/fvitt/esmf_7_0_0/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
+  <ESMF_LIBDIR>/home6/fvitt/esmf_7_1_0r/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
 </compiler>
 
 <compiler MACH="pleiades-san">
@@ -860,19 +1228,7 @@ using a fortran linker.
   <SLIBS>
     <append>-L$ENV{NETCDF}/lib -lnetcdff -lnetcdf</append>
   </SLIBS>
-  <ESMF_LIBDIR>/home6/fvitt/esmf_7_0_0/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
-</compiler>
-
-<compiler MACH="sierra">
-  <LDFLAGS>
-    <append> -Wl,-rpath /usr/local/tools/netcdf-pgi-4.1.3/lib</append>
-  </LDFLAGS>
-  <MPI_LIB_NAME> mpich</MPI_LIB_NAME>
-  <MPI_PATH>/usr/local/tools/mvapich2-pgi-1.7/</MPI_PATH>
-  <NETCDF_PATH>/usr/local/tools/netcdf-pgi-4.1.3</NETCDF_PATH>
-  <SLIBS>
-    <append>$SHELL{/usr/local/tools/netcdf-pgi-4.1.3/bin/nc-config --flibs}</append>
-  </SLIBS>
+  <ESMF_LIBDIR>/home6/fvitt/esmf_7_1_0r/esmf/lib/libO/Linux.intel.64.mpi.default</ESMF_LIBDIR>
 </compiler>
 
 <compiler MACH="sandiatoss3" COMPILER="intel">
@@ -894,7 +1250,22 @@ using a fortran linker.
   </SLIBS>
 </compiler>
 
-<compiler MACH="stampede">
+<compiler MACH="lonestar5">
+  <CPPDEFS>
+    <append> -DHAVE_NANOTIME </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{TACC_NETCDF_DIR}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>lustre</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{TACC_PNETCDF_DIR}</PNETCDF_PATH>
+  <LDFLAGS>
+    <append> -Wl,-rpath,${NETCDF_PATH}/lib </append>
+  </LDFLAGS>
+  <SLIBS>
+    <append> -L${NETCDF_PATH}/lib -lnetcdff -lnetcdf</append>
+  </SLIBS>
+</compiler>
+
+<compiler MACH="stampede2-skx">
   <CPPDEFS>
     <append> -DHAVE_NANOTIME </append>
   </CPPDEFS>
@@ -903,21 +1274,56 @@ using a fortran linker.
   <PNETCDF_PATH>$ENV{TACC_PNETCDF_DIR}</PNETCDF_PATH>
 </compiler>
 
-<compiler MACH="stampede" COMPILER="intel">
+<compiler MACH="stampede2-skx" COMPILER="intel">
   <CFLAGS>
-    <append> -xHost </append>
+    <append> -xCOMMON-AVX512 -no-fma </append>
   </CFLAGS>
   <FFLAGS>
-    <append> -xHost </append>
+    <append> -xCOMMON-AVX512 -no-fma </append>
     <append MPILIB="mpi-serial"> -mcmodel medium </append>
   </FFLAGS>
   <LDFLAGS>
-    <append>-L$ENV{TACC_HDF5_LIB} -lhdf5</append>
+    <append>-L$ENV{TACC_HDF5_LIB} -lhdf5 $(MKL) -zmuldefs -xCOMMON-AVX512</append>
   </LDFLAGS>
   <SLIBS>
     <append>$SHELL{${NETCDF_PATH}/bin/nf-config --flibs} -L$ENV{TACC_HDF5_LIB} -lhdf5</append>
   </SLIBS>
   <TRILINOS_PATH>$ENV{TRILINOS_PATH}</TRILINOS_PATH>
+  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
+</compiler>
+
+<compiler MACH="stampede2-knl">
+  <CPPDEFS>
+    <append> -DHAVE_NANOTIME </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$ENV{TACC_NETCDF_DIR}</NETCDF_PATH>
+  <PIO_FILESYSTEM_HINTS>lustre</PIO_FILESYSTEM_HINTS>
+  <PNETCDF_PATH>$ENV{TACC_PNETCDF_DIR}</PNETCDF_PATH>
+</compiler>
+
+<compiler MACH="stampede2-knl" COMPILER="intel">
+  <CFLAGS>
+    <append> -xCOMMON-AVX512 -no-fma </append>
+  </CFLAGS>
+  <FFLAGS>
+    <append> -xCOMMON-AVX512 -no-fma </append>
+    <append MPILIB="mpi-serial"> -mcmodel medium </append>
+  </FFLAGS>
+  <LDFLAGS>
+    <append>-L$ENV{TACC_HDF5_LIB} -lhdf5 $(MKL) -zmuldefs -xCOMMON-AVX512</append>
+  </LDFLAGS>
+  <SLIBS>
+    <append>$SHELL{${NETCDF_PATH}/bin/nf-config --flibs} -L$ENV{TACC_HDF5_LIB} -lhdf5</append>
+  </SLIBS>
+  <TRILINOS_PATH>$ENV{TRILINOS_PATH}</TRILINOS_PATH>
+  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
+</compiler>
+
+<compiler COMPILER="intel" MACH="theia">
+  <MPICC> mpiicc  </MPICC>
+  <MPICXX> mpiicpc </MPICXX>
+  <MPIFC> mpiifort </MPIFC>
+  <NETCDF_PATH>/apps/netcdf/4.3.0-intel</NETCDF_PATH>
 </compiler>
 
 <compiler MACH="theta">
@@ -932,24 +1338,6 @@ using a fortran linker.
   </CONFIG_ARGS>
   <SLIBS>
     <append>-L$(NETCDF_DIR)/lib -lnetcdff -L$(NETCDF_DIR)/lib -lnetcdf -Wl,-rpath -Wl,$(NETCDF_DIR)/lib </append>
-  </SLIBS>
-</compiler>
-
-
-<compiler MACH="tukey" COMPILER="ibm">
-  <HDF5_PATH>/soft/libraries/hdf5/1.8.10/cnk-xl/current/ </HDF5_PATH>
-  <!-- This LD is a workaround for darshan initialization on tukey?? (Darshan does -->
-  <!-- not run if f90 or higher is used for linking -->
-  <LD> mpixlf77_r </LD>
-  <MPICC> mpixlc_r </MPICC>
-  <MPIFC> mpixlf2003_r </MPIFC>
-  <NETCDF_PATH>/soft/libraries/netcdf/4.3.0-f4.2/cnk-xl/V1R2M0-20131211/</NETCDF_PATH>
-  <PIO_FILESYSTEM_HINTS>gpfs </PIO_FILESYSTEM_HINTS>
-  <PNETCDF_PATH>/soft/libraries/pnetcdf/1.3.1/cnk-xl/current/</PNETCDF_PATH>
-  <SCC> mpixlc_r </SCC>
-  <SFC> mpixlf2003_r </SFC>
-  <SLIBS>
-    <append>-L${NETCDF_PATH}/lib -lnetcdff -lnetcdf -L/soft/libraries/hdf5/1.8.10/cnk-xl/current/lib -lhdf5_hl -lhdf5 -L/soft/libraries/alcf/current/xl/ZLIB/lib -lz -L/soft/libraries/alcf/current/xl/LAPACK/lib -llapack -L/soft/libraries/alcf/current/xl/BLAS/lib -lblas -L/bgsys/drivers/ppcfloor/comm/sys/lib </append>
   </SLIBS>
 </compiler>
 
@@ -968,236 +1356,6 @@ using a fortran linker.
   <SLIBS>
     <append># USERDEFINED $SHELL{${NETCDF_PATH}/bin/nc-config --flibs}</append>
   </SLIBS>
-</compiler>
-
-<compiler MACH="yellowstone">
-  <CPPDEFS>
-    <!-- these flags enable nano timers -->
-    <append MODEL="gptl"> -DHAVE_NANOTIME -DBIT64 -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
-  </CPPDEFS>
-  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
-  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
-  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
-</compiler>
-
-<compiler MACH="cheyenne" COMPILER="gnu">
-  <CPPDEFS>
-    <append MODEL="pio1"> -DNO_MPIMOD </append>
-  </CPPDEFS>
-</compiler>
-
-<compiler MACH="cheyenne">
-  <CPPDEFS>
-    <!-- these flags enable nano timers -->
-    <append MODEL="gptl"> -DHAVE_NANOTIME -DBIT64 -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
-  </CPPDEFS>
-  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
-  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
-  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
-</compiler>
-<compiler MACH="cheyenne" COMPILER="intel">
-  <CFLAGS>
-    <append> -qopt-report -xCORE_AVX2 -no-fma</append>
-  </CFLAGS>
-  <FFLAGS>
-    <append> -qopt-report -xCORE_AVX2 -no-fma</append>
-  </FFLAGS>
-  <CMAKE_OPTS>
-    <append DEBUG="TRUE"> -DPIO_ENABLE_LOGGING=ON </append>
-  </CMAKE_OPTS>
-  <PFUNIT_PATH MPILIB="mpi-serial" compile_threaded="false">$ENV{CESMDATAROOT}/tools/pFUnit/pFUnit3.2.8_cheyenne_Intel17.0.1_noMPI_noOpenMP</PFUNIT_PATH>
-  <PFUNIT_PATH MPILIB="mpt" compile_threaded="true">$ENV{CESMDATAROOT}/tools/pFUnit/pFUnit3.2.8_cheyenne_Intel17.0.1_MPI_openMP</PFUNIT_PATH>
-  <!-- Bug in the intel/17.0.1 compiler requires this, remove this line when compiler is updated -->
-  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
-</compiler>
-
-<compiler MACH="laramie">
-  <CPPDEFS>
-    <!-- these flags enable nano timers -->
-    <append MODEL="gptl"> -DHAVE_NANOTIME -DBIT64 -DHAVE_VPRINTF -DHAVE_BACKTRACE -DHAVE_SLASHPROC -DHAVE_COMM_F2C -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
-  </CPPDEFS>
-  <NETCDF_PATH>$ENV{NETCDF}</NETCDF_PATH>
-  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
-  <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
-</compiler>
-<compiler MACH="laramie" COMPILER="intel">
-  <CFLAGS>
-    <append> -vec-report </append>
-  </CFLAGS>
-  <FFLAGS>
-    <append> -vec-report </append>
-  </FFLAGS>
-  <CMAKE_OPTS>
-    <append DEBUG="TRUE"> -DPIO_ENABLE_LOGGING=ON </append>
-  </CMAKE_OPTS>
-</compiler>
-
-<compiler MACH="yellowstone" COMPILER="gnu">
-  <LAPACK_LIBDIR> /glade/apps/opt/lib </LAPACK_LIBDIR>
-  <SCC MPILIB="mpi-serial">gcc</SCC>
-  <SFC MPILIB="mpi-serial">gfortran</SFC>
-</compiler>
-
-<compiler MACH="yellowstone" COMPILER="intel">
-  <CFLAGS>
-    <append MPILIB="mpich2">  -xHost </append>
-  </CFLAGS>
-  <CPPDEFS>
-    <append MPILIB="mpich2"> -DINTEL_MKL -DHAVE_SSE2 </append>
-  </CPPDEFS>
-  <FFLAGS>
-    <append MPILIB="mpich2">  -xHost </append>
-  </FFLAGS>
-  <MPICXX MPILIB="mpich2">mpiicpc</MPICXX>
-  <PAPI_INC MPILIB="mpich2"> /glade/apps/opt/papi/5.3.0/intel/12.1.5/include/</PAPI_INC>
-  <PAPI_LIB MPILIB="mpich2">/glade/apps/opt/papi/5.3.0/intel/12.1.5/lib64 </PAPI_LIB>
-  <PFUNIT_PATH MPILIB="mpi-serial" compile_threaded="false">$ENV{CESMDATAROOT}/tools/pFUnit/pFUnit3.1_yellowstone_Intel15.0.1_noMPI_noOpenMP</PFUNIT_PATH>
-  <PFUNIT_PATH MPILIB="mpich2" compile_threaded="true">$ENV{CESMDATAROOT}/tools/pFUnit/pFUnit3.1_Intel15.0.1_MPI</PFUNIT_PATH>
-  <!-- Needed due to the way that netcdf is loaded on yellowstone -->
-  <SCC MPILIB="mpi-serial">icc</SCC>
-  <SFC MPILIB="mpi-serial">ifort</SFC>
-  <SCC MPILIB="mpich2">${MPICC}</SCC>
-  <SFC MPILIB="mpich2">${MPIFC}</SFC>
-  <SLIBS>
-    <append MPILIB="mpich2"> -Wl,-rpath ${PAPI_LIB} -L${PAPI_LIB} -lpapi</append>
-  </SLIBS>
-  <TRILINOS_PATH MPILIB="mpich2">$ENV{TRILINOS_PATH}</TRILINOS_PATH>
-</compiler>
-
-<compiler MACH="yellowstone" COMPILER="pgi">
-  <CFLAGS>
-    <append DEBUG="FALSE"> -O </append>
-  </CFLAGS>
-  <FFLAGS>
-    <append DEBUG="FALSE"> -O </append>
-  </FFLAGS>
-  <SLIBS>
-    <append> -llapack -lblas </append>
-  </SLIBS>
-  <SCC MPILIB="mpi-serial">pgcc</SCC>
-  <SFC MPILIB="mpi-serial">pgfortran</SFC>
-</compiler>
-
-<compiler COMPILER="intel" MACH="lbl-lr3">
-  <CPPDEFS>
-    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
-  </CPPDEFS>
-  <SLIBS>
-    <append> -lnetcdff -lnetcdf -mkl </append>
-  </SLIBS>
-  <FFLAGS>
-    <append DEBUG="TRUE"> -ftrapuv </append>
-  </FFLAGS>
-  <CFLAGS>
-    <append DEBUG="TRUE"> -ftrapuv </append>
-  </CFLAGS>
-  <NETCDF_PATH>$ENV{NETCDF_DIR}</NETCDF_PATH>
-</compiler>
-
-<compiler COMPILER="intel" MACH="lbl-lr2">
-  <CPPDEFS>
-    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
-  </CPPDEFS>
-  <SLIBS>
-    <append> -lnetcdff -lnetcdf -mkl </append>
-  </SLIBS>
-  <FFLAGS>
-    <append DEBUG="TRUE"> -ftrapuv </append>
-  </FFLAGS>
-  <CFLAGS>
-    <append DEBUG="TRUE"> -ftrapuv </append>
-  </CFLAGS>
-  <NETCDF_PATH>$ENV{NETCDF_DIR}</NETCDF_PATH>
-</compiler>
-
-<compiler COMPILER="gnu" MACH="modex">
-  <SLIBS>
-    <append> -L$ENV{HDF5_HOME}/lib -lhdf5_fortran -lhdf5 -lhdf5_hl -lhdf5hl_fortran </append>
-    <append> -L$ENV{NETCDF_PATH}/lib/ -lnetcdff -lnetcdf -lcurl -lblas -llapack</append>
-  </SLIBS>
-  <CPPDEFS>
-     <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY -DHAVE_BACKTRACE </append>
-  </CPPDEFS>
-</compiler>
-
-<compiler MACH="ada" COMPILER="intel">
-  <CPPDEFS>
-    <append> -DHAVE_NANOTIME -DNO_R16 </append>
-  </CPPDEFS>
-  <CFLAGS>
-    <append></append>
-  </CFLAGS>
-  <FFLAGS>
-    <append></append>
-  </FFLAGS>
-  <MPIFC>mpiifort</MPIFC>
-  <MPICC>mpiicc</MPICC>
-  <MPICXX>mpiicpc</MPICXX>
-  <SFC>ifort</SFC>
-  <SCC>icc</SCC>
-  <SCXX>icpc</SCXX>
-  <NETCDF_PATH>/software/tamusc/WRF/netcdf/4.3.3.1-intel-2015B</NETCDF_PATH>
-  <NETCDF_C_PATH>/software/tamusc/WRF/netcdf/4.3.3.1-intel-2015B</NETCDF_C_PATH>
-  <NETCDF_FORTRAN_PATH>/software/tamusc/WRF/netcdf-fortran/4.4.2-intel-2015B</NETCDF_FORTRAN_PATH>
-  <PNETCDF_PATH>/software/tamusc/pnetcdf/1.6.1-intel-2015B</PNETCDF_PATH>
-  <SLIBS>
-    <append>-L${NETCDF_C_PATH}/lib -lnetcdf</append>
-    <append>-L${NETCDF_FORTRAN_PATH}/lib -lnetcdff</append>
-    <append>-L${PNETCDF_PATH}/lib -lpnetcdf</append>
-  </SLIBS>
-  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
-  <!-- Bug in the intel/17.0.1 compiler requires this, remove this line when compiler is updated -->
-  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
-</compiler>
-
-<compiler MACH="terra" COMPILER="intel">
-  <CPPDEFS>
-    <append> -DHAVE_NANOTIME -DNO_R16 </append>
-  </CPPDEFS>
-  <CFLAGS>
-    <append></append>
-  </CFLAGS>
-  <FFLAGS>
-    <append></append>
-  </FFLAGS>
-  <MPIFC>mpiifort</MPIFC>
-  <MPICC>mpiicc</MPICC>
-  <MPICXX>mpiicpc</MPICXX>
-  <SFC>ifort</SFC>
-  <SCC>icc</SCC>
-  <SCXX>icpc</SCXX>
-  <NETCDF_C_PATH>/sw/eb/sw/netCDF/4.4.1.1-iimpi-2017A</NETCDF_C_PATH>
-  <NETCDF_FORTRAN_PATH>/sw/eb/sw/netCDF-Fortran/4.4.4-iimpi-2017A</NETCDF_FORTRAN_PATH>
-  <PNETCDF_PATH>/sw/eb/sw/PnetCDF/1.8.1-intel-2017A</PNETCDF_PATH>
-  <SLIBS>
-    <append>-L${NETCDF_C_PATH}/lib64 -lnetcdf</append>
-    <append>-L${NETCDF_FORTRAN_PATH}/lib -lnetcdff</append>
-    <append>-L${PNETCDF_PATH}/lib -lpnetcdf</append>
-  </SLIBS>
-  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
-  <!-- Bug in the intel/17.0.1 compiler requires this, remove this line when compiler is updated -->
-  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
-</compiler>
-
-<compiler MACH="stampede2" COMPILER="intel">
-  <CPPDEFS>
-    <append> -DHAVE_NANOTIME -DNO_R16 </append>
-  </CPPDEFS>
-  <MPIFC>mpiifort</MPIFC>
-  <MPICC>mpiicc</MPICC>
-  <MPICXX>mpiicpc</MPICXX>
-  <SFC>ifort</SFC>
-  <SCC>icc</SCC>
-  <SCXX>icpc</SCXX>
-  <NETCDF_PATH>$ENV{TACC_NETCDF_DIR}</NETCDF_PATH>
-  <PNETCDF_PATH>$ENV{TACC_PNETCDF_DIR}</PNETCDF_PATH>
-  <SLIBS>
-    <append>-L$ENV{TACC_NETCDF_DIR}/lib -lnetcdf -lnetcdff</append>
-    <append>-L$ENV{TACC_PNETCDF_DIR}/lib -lpnetcdf</append>
-  </SLIBS>
-  <PIO_FILESYSTEM_HINTS>gpfs</PIO_FILESYSTEM_HINTS>
-  <!-- Bug in the intel/17.0.1 compiler requires this, remove this line when compiler is updated -->
-  <HAS_F2008_CONTIGUOUS>FALSE</HAS_F2008_CONTIGUOUS>
 </compiler>
 
 </config_compilers>

@@ -18,14 +18,26 @@
     <desc forcing="HIST">Historic transient </desc>
     <desc forcing="20TR">Twentieth century transient</desc>
     <desc forcing="4804"></desc>
-    <desc forcing="RCP2">CMIP5 rcp 2.6 forcing</desc>
-    <desc forcing="RCP4">CMIP5 rcp 4.5 forcing</desc>
-    <desc forcing="RCP6">CMIP5 rcp 6.0 forcing</desc>
-    <desc forcing="RCP8">CMIP5 rcp 8.5 forcing</desc>
+    <desc forcing="SSP119">CMIP6 SSP1-1.9 forcing</desc>
+    <desc forcing="SSP126">CMIP6 SSP1-2.6 forcing</desc>
+    <desc forcing="SSP245">CMIP6 SSP2-4.5 forcing</desc>
+    <desc forcing="SSP370">CMIP6 SSP3-7.0 forcing</desc>
+    <desc forcing="SSP434">CMIP6 SSP4-3.4 forcing</desc>
+    <desc forcing="SSP460">CMIP6 SSP4-6.0 forcing</desc>
+    <desc forcing="SSP534">CMIP6 SSP5-3.4 forcing</desc>
+    <desc forcing="SSP585">CMIP6 SSP5-8.5 forcing</desc>
     <desc cpl="BGC[%BDRD][%BPRP]">Biogeochemistry intercomponent </desc>
     <desc option="BDRD"> with diagnostic CO2</desc>
     <desc option="BPRP"> with prognostic CO2 </desc>
   </description>
+
+  <entry id="MODEL_DOI_URL">
+    <type>char</type>
+    <default_value>https://doi.org/10.5065/D67H1H0V</default_value>
+    <group>run_metadata</group>
+    <file>env_case.xml</file>
+    <desc>run DOI</desc>
+  </entry>
 
   <entry id="DRV_THREADING">
     <type>logical</type>
@@ -35,6 +47,26 @@
     <file>env_run.xml</file>
     <desc>Turns on component varying thread control in the driver.
     Used to set the driver namelist variable "drv_threading".</desc>
+  </entry>
+
+  <entry id="INFO_TASKMAP_MODEL">
+    <type>integer</type>
+    <valid_values>0,1,2</valid_values>
+    <default_value>0</default_value>
+    <group>run_flags</group>
+    <file>env_run.xml</file>
+    <desc>Sets level of task-to-node mapping output for the whole model
+    (0: no output; 1: compact; 2: verbose).</desc>
+  </entry>
+
+  <entry id="INFO_TASKMAP_COMP">
+    <type>integer</type>
+    <valid_values>0,1,2</valid_values>
+    <default_value>0</default_value>
+    <group>run_flags</group>
+    <file>env_run.xml</file>
+    <desc>Sets level of task-to-node mapping output for supported component models
+    (0: no output; 1: compact; 2: verbose).</desc>
   </entry>
 
   <entry id="SAVE_TIMING">
@@ -49,7 +81,7 @@
   <entry id="TPROF_TOTAL">
     <type>integer</type>
     <default_value>0</default_value>
-    <group>run_cesm</group>
+    <group>run_flags</group>
     <file>env_run.xml</file>
     <desc>Determines number of times profiler is called over the model run period.
     This sets values for tprof_option and tprof_n that determine the timing output file frequency
@@ -61,7 +93,17 @@
     <default_value>2</default_value>
     <group>run_flags</group>
     <file>env_run.xml</file>
-    <desc>timer output depth</desc>
+    <desc>
+    integer indicating maximum detail level to profile. This xml
+    variable is used to set the namelist variable
+    timing_detail_limit. This namelist variable is used by perf_mod
+    (in $CIMEROOT/src/share/timing/perf_mod.F90) to turn timers off
+    and on depending on calls to the routine t_adj_detailf. If in the
+    code a statement appears like t_adj_detailf(+1), then the current
+    timer detail level is incremented by 1 and compared to the
+    time_detail_limit obtained from the namelist.  If the limit is
+    exceeded then the timer is turned off.
+    </desc>
   </entry>
 
   <entry id="TIMER_LEVEL">
@@ -69,7 +111,7 @@
     <default_value>12</default_value>
     <group>run_flags</group>
     <file>env_run.xml</file>
-    <desc>timer output depth</desc>
+    <desc>Maximum code stack depth of enabled timers.</desc>
   </entry>
 
   <entry id="DOUT_S_SAVE_INTERIM_RESTART_FILES">
@@ -119,8 +161,10 @@
       <value compset="_CAM">CO2A</value>
       <value compset="_DATM">none</value>
       <value compset="_DATM%CPLHIST.+POP\d">CO2A</value>
+      <value compset="^OMIP_DATM%IAF.*_POP2%[^_]*ECO">CO2A</value>
+      <value compset="^OMIP_DATM%JRA.*_POP2%[^_]*ECO">CO2A</value>
       <value compset="HIST.*_DATM.*_CLM">CO2A</value>
-      <value compset="RCP.*_DATM.*_CLM">CO2A</value>
+      <value compset="SSP.*_DATM.*_CLM">CO2A</value>
       <value compset="_BGC%BPRP">CO2C</value>
       <value compset="_BGC%BDRD">CO2C</value>
     </values>
@@ -184,10 +228,14 @@
       <value compset="_DATM%COPYALL_NPS">72</value>
       <value compset="_DATM.*_CLM">48</value>
       <value compset="_DATM.*_DICE.*_POP2">4</value>
+      <value compset="_DATM.*_DICE.*_MOM6">24</value>
       <value compset="_DATM.*_SLND.*_CICE.*_POP2">24</value>
+      <value compset="_DATM.*_SLND.*_CICE.*_POP2" grid="oi%tx0.1v3">144</value>
+      <value compset="_DATM.*_SLND.*_CICE.*_MOM6">24</value>
       <value compset="_DATM.*_CICE.*_DOCN">24</value>
       <value compset="_DATM.*_DOCN%US20">24</value>
       <value compset="_DATM%CPLHIST.+POP\d">48</value>
+      <value compset="_DATM%CPLHIST.+MOM\d">48</value>
       <value compset="_MPAS">1</value>
       <value compset=".+" grid="a%0.23x0.31">96</value>
       <value compset=".+" grid="a%ne60np4">96</value>
@@ -200,7 +248,14 @@
       <value compset=".+" grid="a%ne240np4">384</value>
       <value compset=".+" grid="a%ne240np4.pg2">384</value>
       <value compset=".+" grid="a%ne240np4.pg3">384</value>
-      <value compset=".+" grid="a%ne0np4CONUS.ne30x8">144</value>
+      <value compset=".+" grid="a%ne0np4CONUS.ne30x8">384</value>
+      <value compset=".+" grid="a%ne0np4.ARCTIC.ne30x4">192</value>
+      <value compset=".+" grid="a%ne0np4.ARCTICGRIS.ne30x8">384</value>
+      <value compset=".+" grid="a%C24">48</value>
+      <value compset=".+" grid="a%C48">48</value>
+      <value compset=".+" grid="a%C96">48</value>
+      <value compset=".+" grid="a%C192">96</value>
+      <value compset=".+" grid="a%C384">192</value>
       <value compset=".+" grid="a%T42">72</value>
       <value compset=".+" grid="a%T85">144</value>
       <value compset=".+" grid="a%T341">288</value>
@@ -210,7 +265,9 @@
       <value compset=".+" grid="1x1_vancou">24</value>
       <value compset="_DLND.*_CISM\d">1</value>
       <value compset="_DATM.*_DICE.*_POP2.*_WW3">4</value>
+      <value compset="_DATM.*_DICE.*_MOM6.*_WW3">4</value>
       <value compset="_DATM.*_DICE.*_POP2.*_DWAV">4</value>
+      <value compset="_DATM.*_DICE.*_MOM6.*_DWAV">4</value>
     </values>
     <group>run_coupling</group>
     <file>env_run.xml</file>
@@ -250,15 +307,17 @@
     <default_value>$ATM_NCPL</default_value>
     <values match="last">
       <value compset="_POP2">1</value>
+      <value compset="_MOM6">24</value>
       <value compset="_POP2" grid="oi%tx0.1v2">4</value>
       <value compset="_POP2" grid="oi%gx1v6">24</value>
       <value compset="_POP2" grid="oi%gx1v7">24</value>
+      <value compset="_POP2" grid="oi%tx0.1v3">48</value>
       <value compset="_DATM%NYF.*_SLND.*_DICE.*_DOCN.*_SWAV">1</value>
       <value compset="_DATM%NYF.*_DLND.*_DICE.*_DOCN.*_DWAV">1</value>
-      <value compset="_XATM.*_XLND.*_XICE.*_XOCN">1</value>
-      <value compset="_DATM.*_CLM.*_SICE.*_SOCN">1</value>
-      <value compset="_SATM.*_SLND.*_SICE.*_SOCN">1</value>
       <value compset="_DLND.*_CISM\d">1</value>
+      <value compset="_XOCN">$ATM_NCPL</value>
+      <value compset="_SOCN">$ATM_NCPL</value>
+      <value compset="_NEMO">24</value>
     </values>
     <group>run_coupling</group>
     <file>env_run.xml</file>
@@ -272,6 +331,9 @@
     <default_value>1</default_value>
     <values match="last">
       <value compset="_DLND.*_CISM\d">1</value>
+      <value compset="_SGLC">$ATM_NCPL</value>
+      <value compset="_XGLC">$ATM_NCPL</value>
+      <value compset="_MOM6">1</value>
     </values>
     <group>run_coupling</group>
     <file>env_run.xml</file>
@@ -304,11 +366,15 @@
     <default_value>8</default_value>
     <values match="last">
       <value compset="_DATM.*_POP2.*_DROF">$ATM_NCPL</value>
+      <value compset="_DATM.*_MOM6.*_DROF">$ATM_NCPL</value>
       <value compset="_DATM.*_DOCN%SOM">$ATM_NCPL</value>
       <value compset="_DATM.*_SLND.*_DICE.*_DOCN">$ATM_NCPL</value>
       <value compset="_DATM%CPLHIST.+POP\d">8</value>
+      <value compset="_DATM%CPLHIST.+MOM\d">8</value>
       <value compset="_XATM.*_XLND.*_XICE.*_XOCN">$ATM_NCPL</value>
       <value compset="_DLND.*_CISM\d">1</value>
+      <value compset="_SROF">$ATM_NCPL</value>
+      <value compset="_XROF">$ATM_NCPL</value>
     </values>
     <group>run_coupling</group>
     <file>env_run.xml</file>
@@ -336,8 +402,11 @@
     <default_value>FALSE</default_value>
     <values match="last">
       <value compset="DATM.+POP\d">TRUE</value>
+      <value compset="DATM.+MOM\d">TRUE</value>
       <value compset="DATM.+DOCN%IAF">TRUE</value>
       <value compset="DATM%CPLHIST.+POP\d">FALSE</value>
+      <value compset="DOCN%AQP11">TRUE</value>
+      <value compset="DATM%CPLHIST.+MOM\d">FALSE</value>
     </values>
     <group>run_component_cpl</group>
     <file>env_run.xml</file>
@@ -380,23 +449,23 @@
 
   <entry id="CPL_SEQ_OPTION">
     <type>char</type>
-    <valid_values>CESM1_ORIG,CESM1_ORIG_TIGHT,CESM1_MOD,CESM1_MOD_TIGHT,RASM_OPTION1,RASM_OPTION2</valid_values>
+    <valid_values>CESM1_MOD,CESM1_MOD_TIGHT,RASM_OPTION1,RASM_OPTION2,NUOPC,NUOPC_TIGHT</valid_values>
     <default_value>CESM1_MOD_TIGHT</default_value>
     <values match="last">
-      <value compset="_DATM.*_DOCN%SOM"          >CESM1_MOD</value>
-      <value compset="_POP2"                     >CESM1_MOD</value>
-      <value compset="_POP2" grid="oi%gx1v6"     >RASM_OPTION1</value>
-      <value compset="_POP2" grid="oi%gx1v7"     >RASM_OPTION1</value>
-      <value compset="_DATM%NYF.*_SLND.*_DICE.*_DOCN">CESM1_MOD</value>
-      <value compset="_XATM.*_XLND.*_XICE.*_XOCN">CESM1_MOD</value>
-      <value compset="_SOCN"                     >CESM1_MOD</value>
-      <value compset="_MPAS"                     >CESM1_MOD</value>
+      <value compset="_DATM.*_DOCN%SOM"			>CESM1_MOD</value>
+      <value compset="_POP2"				>CESM1_MOD</value>
+      <value compset="_MOM6"				>RASM_OPTION1</value>
+      <value compset="_POP2" grid="oi%gx1v6"		>RASM_OPTION1</value>
+      <value compset="_POP2" grid="oi%gx1v7"		>RASM_OPTION1</value>
+      <value compset="_DATM%NYF.*_SLND.*_DICE.*_DOCN"	>CESM1_MOD</value>
+      <value compset="_XATM.*_XLND.*_XICE.*_XOCN"	>CESM1_MOD</value>
+      <value compset="_SOCN"				>CESM1_MOD</value>
+      <value compset="_MPAS"				>CESM1_MOD</value>
     </values>
     <group>run_coupling</group>
     <file>env_run.xml</file>
     <desc>
       Coupler sequencing option. This is used to set the driver namelist variable cpl_seq_option.
-      CESM1_ORIG is the cesm1.1 implementation.
       CESM1_MOD includes a cesm1.3 mod that swaps ocean merging and atm/ocn flux
       computation.
       RASM_OPTION1 runs prep ocean before the ocean coupling reducing
@@ -405,10 +474,7 @@
       RASM_OPTION2 is similar to RASM_OPTION1
       but sequences the ice model, prep ocean and ocean model in that order.  The
       ocean model loses some of the concurrency with the ice model.
-      CESM1_ORIG_TIGHT and CESM1_MOD_TIGHT are consistent with the old variables
-      ocean_tight_coupling = true in the driver.  That namelist is gone and the
-      cpl_seq_option flags take it's place.
-      TIGHT coupling makes no sense with the OPTION5 and OPTION6 flags.
+      CESM1_MOD_TIGHT are consistent with the old variables ocean_tight_coupling = true in the driver.
     </desc>
   </entry>
 
@@ -465,7 +531,8 @@
     <default_value>284.7</default_value>
     <values match="last">
       <value compset="^2000">367.0</value>
-      <value compset="DATM.*POP2%ECO">284.7</value>
+      <value compset="DATM.*_POP2%[^_]*ECO">284.317</value>
+      <value compset="DATM.*_POP2%[^_]*ECOCESM20">284.7</value>
     </values>
     <group>run_co2</group>
     <file>env_run.xml</file>
@@ -491,16 +558,11 @@
 
   <entry id="GLC_NEC">
     <type>integer</type>
-    <valid_values>0,1,3,5,10,36</valid_values>
+    <valid_values>1,3,5,10,36</valid_values>
     <default_value>10</default_value>
-    <values match="last">
-      <value compset="_CLM40.*_SGLC">0</value>
-    </values>
     <group>run_glc</group>
     <file>env_run.xml</file>
     <desc>Number of glacier elevation classes used in CLM.
-    0 implies no glacier_mec (glacier multiple elevation classes)
-    landunit in CLM. 0 is only valid for CLM40.
     Used by both CLM and the coupler (even if CISM is not running, and only SGLC is used).</desc>
   </entry>
 
@@ -509,8 +571,7 @@
     <valid_values>TRUE,FALSE</valid_values>
     <default_value>FALSE</default_value>
     <values match="last">
-      <value compset="_CLM45.+CISM\d">TRUE</value>
-      <value compset="_CLM50.+CISM\d">TRUE</value>
+      <value compset="_CLM.+CISM\d">TRUE</value>
       <!-- Turn on two-way coupling for TG compsets - even though there are no
            feedbacks for a TG compset, this will give us additional diagnostics -->
       <value compset="_DLND.+CISM\d">TRUE</value>
@@ -530,6 +591,9 @@
     <type>char</type>
     <valid_values>minus1p8,linear_salt,mushy</valid_values>
     <default_value>mushy</default_value>
+    <values match="last">
+      <value compset="_MOM6">linear_salt</value>
+    </values>
     <group>run_physics</group>
     <file>env_run.xml</file>
     <desc>Freezing point calculation for salt water.</desc>

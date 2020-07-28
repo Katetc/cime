@@ -7,7 +7,10 @@ VPATH := $(GPTL_DIR)
 ifndef MOD_SUFFIX
    MOD_SUFFIX := mod
 endif
-
+ifeq ($(strip $(SMP)),TRUE)
+  CPPDEFS +=  -DTHREADED_OMP
+  compile_threaded=TRUE
+endif
 
 ifeq ($(strip $(MACFILE)),)
    MACFILE  := Macros.make
@@ -18,8 +21,29 @@ endif
 # But must be AFTER any definitions it uses are defined.
 # So be careful if moving this either earlier or later in the makefile!!!
 include $(MACFILE)
+ifdef COMP_INTERFACE
+  UPVAR := $(shell echo $(COMP_INTERFACE) | tr a-z A-Z)
+  CPPDEFS+=-D$(UPVAR)_INTERFACE
+  ifeq ("$(COMP_INTERFACE)", "nuopc")
+    # Set esmf.mk location with ESMF_LIBDIR having precedence over ESMFMKFILE
+    CIME_ESMFMKFILE := undefined_ESMFMKFILE
+    ifdef ESMFMKFILE
+       CIME_ESMFMKFILE := $(ESMFMKFILE)
+    endif
+    ifdef ESMF_LIBDIR
+       CIME_ESMFMKFILE := $(ESMF_LIBDIR)/esmf.mk
+    endif
+    -include $(CIME_ESMFMKFILE)
+    FFLAGS += $(ESMF_F90COMPILEPATHS)
+  endif
+endif
+ifdef DEBUG
+  ifeq ("$(DEBUG)", "TRUE")
+    CPPDEFS+=-DDEBUG
+  endif
+endif
 ifdef GPTL_CPPDEFS
-  CPPDEFS+=$(GPTL_CPPDEFS)  -D$(OS) -DCPR$(shell echo $(COMPILER) | tr a-z A-z)
+  CPPDEFS+=$(GPTL_CPPDEFS) -D$(OS) -DCPR$(shell echo $(COMPILER) | tr a-z A-z)
 endif
 INCLDIR += -I$(GPTL_DIR)
 
@@ -45,9 +69,11 @@ endif
 OBJS = gptl.o GPTLutil.o GPTLget_memusage.o GPTLprint_memusage.o \
        gptl_papi.o f_wrappers.o perf_mod.o perf_utils.o
 
+AR ?= ar
+ARFLAGS ?= ruv
 
 libgptl.a: $(OBJS)
-	$(AR) ruv $@ $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(OBJS)
 
 
 

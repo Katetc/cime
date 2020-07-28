@@ -2,11 +2,25 @@
 CIME ERI test  This class inherits from SystemTestsCommon
 """
 from CIME.XML.standard_module_setup import *
+from CIME.utils import safe_copy
 from CIME.SystemTests.system_tests_common import SystemTestsCommon
-from CIME.check_input_data import check_all_input_data
+from stat import S_ISDIR, ST_CTIME, ST_MODE
 import shutil, glob, os
 
 logger = logging.getLogger(__name__)
+
+def _get_rest_date(archive_root):
+    restdir = os.path.join(archive_root,"rest")
+    # get all entries in the directory w/ stats
+    entries = (os.path.join(restdir, fn) for fn in os.listdir(restdir))
+    entries = ((os.stat(path), path) for path in entries)
+    entries = sorted((stat[ST_CTIME], path)
+                     for stat, path in entries if S_ISDIR(stat[ST_MODE]))
+    last_dir = os.path.basename(entries[-1][1])
+    ref_sec = last_dir[-5:]
+    ref_date = last_dir[:10]
+    return ref_date, ref_sec
+
 
 def _helper(dout_sr, refdate, refsec, rundir):
     rest_path = os.path.join(dout_sr, "rest", "{}-{}".format(refdate, refsec))
@@ -18,7 +32,7 @@ def _helper(dout_sr, refdate, refsec, rundir):
         os.symlink(item, dst)
 
     for item in glob.glob("{}/*rpointer*".format(rest_path)):
-        shutil.copy(item, rundir)
+        safe_copy(item, rundir)
 
 class ERI(SystemTestsCommon):
 
@@ -51,6 +65,9 @@ class ERI(SystemTestsCommon):
         stop_n = self._case.get_value("STOP_N")
         stop_option = self._case.get_value("STOP_OPTION")
         run_startdate = self._case.get_value("RUN_STARTDATE")
+        start_tod = self._case.get_value("START_TOD")
+        if start_tod == 0:
+            start_tod="00000"
 
         stop_n1 = int(stop_n / 6)
         rest_n1 = stop_n1
@@ -81,20 +98,17 @@ class ERI(SystemTestsCommon):
         os.chdir(clone1_path)
         self._set_active_case(clone1)
 
-        logger.info("ref1 startup: doing a {} {} startup run from {} and 00000 seconds".format(stop_n1, stop_option, start_1))
+        logger.info("ref1 startup: doing a {} {} startup run from {} and {} seconds".format(stop_n1, stop_option, start_1, start_tod))
         logger.info("  writing restarts at {} {}".format(rest_n1, stop_option))
         logger.info("  short term archiving is on ")
 
-        clone1.set_value("CONTINUE_RUN", False)
-        clone1.set_value("RUN_STARTDATE", start_1)
-        clone1.set_value("STOP_N", stop_n1)
-        clone1.set_value("REST_OPTION", stop_option)
-        clone1.set_value("REST_N", rest_n1)
-        clone1.set_value("HIST_OPTION", "never")
-        clone1.flush()
-
-        # if the initial case is hybrid this will put the reference data in the correct location
-        check_all_input_data(clone1)
+        with clone1:
+            clone1.set_value("CONTINUE_RUN", False)
+            clone1.set_value("RUN_STARTDATE", start_1)
+            clone1.set_value("STOP_N", stop_n1)
+            clone1.set_value("REST_OPTION", stop_option)
+            clone1.set_value("REST_N", rest_n1)
+            clone1.set_value("HIST_OPTION", "never")
 
         dout_sr1 = clone1.get_value("DOUT_S_ROOT")
 
@@ -104,7 +118,13 @@ class ERI(SystemTestsCommon):
                 with open("user_nl_cam", "a") as fd:
                     fd.write("inithist = 'ENDOFRUN'\n")
 
-        self.run_indv(st_archive=True, suffix=None)
+        with clone1:
+            clone1.case_setup(test_mode=True, reset=True)
+            # if the initial case is hybrid this will put the reference data in the correct location
+            clone1.check_all_input_data()
+
+            self._skip_pnl = False
+            self.run_indv(st_archive=True, suffix=None)
 
         #
         # (2) Test run:
@@ -117,8 +137,7 @@ class ERI(SystemTestsCommon):
         self._set_active_case(clone2)
 
         # Set startdate to start2, set ref date based on ref1 restart
-        refdate_2 = run_cmd_no_fail(r'ls -1dt {}/rest/*-00000* | head -1 | sed "s/-00000.*//" | sed "s/^.*rest\///"'.format(dout_sr1))
-        refsec_2 = "00000"
+        refdate_2, refsec_2 = _get_rest_date(dout_sr1)
 
         logger.info("ref2 hybrid: doing a {} {} startup hybrid run".format(stop_n2, stop_option))
         logger.info("  starting from {} and using ref1 {} and {} seconds".format(start_2, refdate_2, refsec_2))
@@ -126,31 +145,31 @@ class ERI(SystemTestsCommon):
         logger.info("  short term archiving is on ")
 
         # setup ref2 case
-        clone2.set_value("RUN_TYPE",      "hybrid")
-        clone2.set_value("RUN_STARTDATE", start_2)
-        clone2.set_value("RUN_REFCASE",   "{}.ref1".format(orig_casevar))
-        clone2.set_value("RUN_REFDATE",   refdate_2)
-        clone2.set_value("RUN_REFTOD",    refsec_2)
-        clone2.set_value("GET_REFCASE",   False)
-        clone2.set_value("CONTINUE_RUN",  False)
-        clone2.set_value("STOP_N",        stop_n2)
-        clone2.set_value("REST_OPTION",   stop_option)
-        clone2.set_value("REST_N",        rest_n2)
-        clone2.set_value("HIST_OPTION",   stop_option)
-        clone2.set_value("HIST_N",        hist_n)
-        clone2.flush()
+        with clone2:
+            clone2.set_value("RUN_TYPE",      "hybrid")
+            clone2.set_value("RUN_STARTDATE", start_2)
+            clone2.set_value("RUN_REFCASE",   "{}.ref1".format(orig_casevar))
+            clone2.set_value("RUN_REFDATE",   refdate_2)
+            clone2.set_value("RUN_REFTOD",    refsec_2)
+            clone2.set_value("GET_REFCASE",   False)
+            clone2.set_value("CONTINUE_RUN",  False)
+            clone2.set_value("STOP_N",        stop_n2)
+            clone2.set_value("REST_OPTION",   stop_option)
+            clone2.set_value("REST_N",        rest_n2)
+            clone2.set_value("HIST_OPTION",   stop_option)
+            clone2.set_value("HIST_N",        hist_n)
 
         rundir2 = clone2.get_value("RUNDIR")
         dout_sr2 = clone2.get_value("DOUT_S_ROOT")
 
-        if not os.path.exists(rundir2):
-            os.makedirs(rundir2)
-
         _helper(dout_sr1, refdate_2, refsec_2, rundir2)
 
         # run ref2 case (all component history files will go to short term archiving)
+        with clone2:
+            clone2.case_setup(test_mode=True, reset=True)
 
-        self.run_indv(suffix="hybrid", st_archive=True)
+            self._skip_pnl = False
+            self.run_indv(suffix="hybrid", st_archive=True)
 
         #
         # (3a) Test run:
@@ -159,9 +178,8 @@ class ERI(SystemTestsCommon):
 
         os.chdir(caseroot)
         self._set_active_case(orig_case)
+        refdate_3, refsec_3 = _get_rest_date(dout_sr2)
 
-        refdate_3 = run_cmd_no_fail(r'ls -1dt {}/rest/*-00000* | head -1 | sed "s/-00000.*//" | sed "s/^.*rest\///"'.format(dout_sr2))
-        refsec_3 = "00000"
 
         logger.info("branch: doing a {} {} branch".format(stop_n3, stop_option))
         logger.info("  starting from ref2 {} and {} seconds restarts".format(refdate_3, refsec_3))
@@ -197,6 +215,7 @@ class ERI(SystemTestsCommon):
                 os.remove(dst)
             os.symlink(item, dst)
 
+        self._skip_pnl = False
         # run branch case (short term archiving is off)
         self.run_indv()
 

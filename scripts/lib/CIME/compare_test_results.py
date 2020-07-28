@@ -1,11 +1,11 @@
 import CIME.compare_namelists, CIME.simple_compare
-from CIME.utils import expect, append_status, EnvironmentContext
+from CIME.utils import append_status, EnvironmentContext
 from CIME.test_status import *
-from CIME.hist_utils import compare_baseline
-from CIME.case_cmpgen_namelists import case_cmpgen_namelists
+from CIME.hist_utils import compare_baseline, get_ts_synopsis
 from CIME.case import Case
+from CIME.test_utils import get_test_status_files
 
-import os, glob, logging
+import os, logging
 
 ###############################################################################
 def append_status_cprnc_log(msg, logfile_name, test_dir):
@@ -20,7 +20,7 @@ def compare_namelists(case, baseline_name, baseline_root, logfile_name):
 ###############################################################################
     log_lvl = logging.getLogger().getEffectiveLevel()
     logging.disable(logging.CRITICAL)
-    success = case_cmpgen_namelists(case, compare=True, compare_name=baseline_name, baseline_root=baseline_root, logfile_name=logfile_name)
+    success = case.case_cmpgen_namelists(compare=True, compare_name=baseline_name, baseline_root=baseline_root, logfile_name=logfile_name)
     logging.getLogger().setLevel(log_lvl)
     return success
 
@@ -59,9 +59,7 @@ def compare_test_results(baseline_name, baseline_root, test_root, compiler, test
     Returns True if all tests generated either PASS or SKIP results, False if
     there was at least one FAIL result.
     """
-    test_id_glob = "*{}*".format(compiler) if test_id is None else "*{}".format(test_id)
-    test_status_files = glob.glob("{}/{}/{}".format(test_root, test_id_glob, TEST_STATUS_FILENAME))
-    expect(test_status_files, "No matching test cases found in for {}/{}/{}".format(test_root, test_id_glob, TEST_STATUS_FILENAME))
+    test_status_files = get_test_status_files(test_root, compiler, test_id=test_id)
 
     # ID to use in the log file names, to avoid file name collisions with
     # earlier files that may exist.
@@ -143,11 +141,7 @@ def compare_test_results(baseline_name, baseline_root, test_root, compiler, test
                             compare_result = TEST_FAIL_STATUS
                             all_pass_or_skip = False
 
-                        # Following the logic in SystemTestsCommon._compare_baseline:
-                        # We'll print the comment if it's a brief one-liner; otherwise
-                        # the comment will only appear in the log file
-                        if "\n" not in detailed_comments:
-                            compare_comment = detailed_comments
+                        compare_comment = get_ts_synopsis(detailed_comments)
 
             brief_result = ""
             if not hist_only:

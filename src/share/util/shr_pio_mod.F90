@@ -178,8 +178,8 @@ contains
        end if
        call pio_set_blocksize(pio_blocksize)
     endif
-
-
+    ! Correct the total_comps value which may be lower in nuopc
+    total_comps = size(comp_iamin)
 
 
     allocate(io_compid(total_comps), io_compname(total_comps))
@@ -189,19 +189,20 @@ contains
     allocate(iosystems(total_comps))
 
     if(pio_async_interface) then
-       call pio_init(total_comps,mpi_comm_world, comp_comm, io_comm, iosystems)
-       do i=1,total_comps
-         ret =  pio_set_rearr_opts(iosystems(i), pio_rearr_opt_comm_type,&
-                  pio_rearr_opt_fcd,&
-                  pio_rearr_opt_c2i_enable_hs, pio_rearr_opt_c2i_enable_isend,&
-                  pio_rearr_opt_c2i_max_pend_req,&
-                  pio_rearr_opt_i2c_enable_hs, pio_rearr_opt_i2c_enable_isend,&
-                  pio_rearr_opt_i2c_max_pend_req)
-         if(ret /= PIO_NOERR) then
-            write(shr_log_unit,*) "ERROR: Setting rearranger options failed"
-         end if
-       end do
-       i=1
+       call shr_sys_abort('pio_async_interface is not currently supported')
+!       call pio_init(total_comps,mpi_comm_world, comp_comm, io_comm, iosystems)
+!       do i=1,total_comps
+!         ret =  pio_set_rearr_opts(iosystems(i), pio_rearr_opt_comm_type,&
+!                  pio_rearr_opt_fcd,&
+!                  pio_rearr_opt_c2i_enable_hs, pio_rearr_opt_c2i_enable_isend,&
+!                  pio_rearr_opt_c2i_max_pend_req,&
+!                  pio_rearr_opt_i2c_enable_hs, pio_rearr_opt_i2c_enable_isend,&
+!                  pio_rearr_opt_i2c_max_pend_req)
+!         if(ret /= PIO_NOERR) then
+!            write(shr_log_unit,*) "ERROR: Setting rearranger options failed"
+!         end if
+!       end do
+!       i=1
     else
        do i=1,total_comps
           if(comp_iamin(i)) then
@@ -229,17 +230,11 @@ contains
              if(ret /= PIO_NOERR) then
                 write(shr_log_unit,*) "ERROR: Setting rearranger options failed"
              end if
-             if(comp_comm_iam(i)==0) then
-                write(shr_log_unit,*) io_compname(i),' : pio_numiotasks = ',pio_comp_settings(i)%pio_numiotasks
-                write(shr_log_unit,*) io_compname(i),' : pio_stride = ',pio_comp_settings(i)%pio_stride
-                write(shr_log_unit,*) io_compname(i),' : pio_root = ',pio_comp_settings(i)%pio_root
-                write(shr_log_unit,*) io_compname(i),' : pio_iotype = ',pio_comp_settings(i)%pio_iotype
-             end if
           end if
        end do
     end if
     do i=1,total_comps
-       if(comp_comm_iam(i)==0) then
+       if(comp_iamin(i) .and. (comp_comm_iam(i) == 0)) then
           write(shr_log_unit,*) io_compname(i),' : pio_numiotasks = ',pio_comp_settings(i)%pio_numiotasks
           write(shr_log_unit,*) io_compname(i),' : pio_stride = ',pio_comp_settings(i)%pio_stride
           write(shr_log_unit,*) io_compname(i),' : pio_rearranger = ',pio_comp_settings(i)%pio_rearranger
@@ -247,7 +242,6 @@ contains
           write(shr_log_unit,*) io_compname(i),' : pio_iotype = ',pio_comp_settings(i)%pio_iotype
        end if
     enddo
-
 
   end subroutine shr_pio_init2
 
@@ -512,12 +506,17 @@ contains
     call shr_mpi_bcast(pio_buffer_size_limit, Comm)
     call shr_mpi_bcast(pio_async_interface, Comm)
     call shr_mpi_bcast(pio_rearranger, Comm)
+    if (npes == 1) then
+       pio_rearr_comm_max_pend_req_comp2io = 0
+       pio_rearr_comm_max_pend_req_io2comp = 0
+    endif
 
-     call shr_pio_rearr_opts_set(Comm, pio_rearr_comm_type, pio_rearr_comm_fcd, &
-           pio_rearr_comm_max_pend_req_comp2io, pio_rearr_comm_enable_hs_comp2io, &
-           pio_rearr_comm_enable_isend_comp2io, &
-           pio_rearr_comm_max_pend_req_io2comp, pio_rearr_comm_enable_hs_io2comp, &
-           pio_rearr_comm_enable_isend_io2comp, pio_numiotasks)
+
+    call shr_pio_rearr_opts_set(Comm, pio_rearr_comm_type, pio_rearr_comm_fcd, &
+         pio_rearr_comm_max_pend_req_comp2io, pio_rearr_comm_enable_hs_comp2io, &
+         pio_rearr_comm_enable_isend_comp2io, &
+         pio_rearr_comm_max_pend_req_io2comp, pio_rearr_comm_enable_hs_io2comp, &
+         pio_rearr_comm_enable_isend_io2comp, pio_numiotasks)
 
   end subroutine shr_pio_read_default_namelist
 
@@ -693,6 +692,7 @@ contains
          (pio_iotype .eq. PIO_IOTYPE_PNETCDF .or. &
          pio_iotype .eq. PIO_IOTYPE_NETCDF4P)) then
        pio_numiotasks = 2
+       pio_stride = min(pio_stride, npes/2)
     endif
 
     !--------------------------------------------------------------------------
@@ -765,6 +765,8 @@ contains
     character(*), parameter :: subname = '(shr_pio_rearr_opts_set) '
     integer, parameter :: NUM_REARR_COMM_OPTS = 8
     integer, parameter :: PIO_REARR_COMM_DEF_MAX_PEND_REQ = 64
+    ! Automatically reset if the number of maximum pending requests is set to 0
+    integer, parameter :: REARR_COMM_DEF_MAX_PEND_REQ_RESET = 0
     integer(SHR_KIND_IN), dimension(NUM_REARR_COMM_OPTS) :: buf
     integer :: rank, ierr
 
@@ -815,13 +817,19 @@ contains
       if((pio_rearr_comm_max_pend_req_comp2io <= 0) .and. &
           (pio_rearr_comm_max_pend_req_comp2io /= PIO_REARR_COMM_UNLIMITED_PEND_REQ)) then
 
+        if(pio_rearr_comm_max_pend_req_comp2io /= REARR_COMM_DEF_MAX_PEND_REQ_RESET) then
+          write(shr_log_unit, *) "Invalid PIO rearranger comm max pend req (comp2io), ",&
+               pio_rearr_comm_max_pend_req_comp2io
+        else
+          write(shr_log_unit, *) "User-specified PIO rearranger comm max pend req (comp2io), ",&
+               pio_rearr_comm_max_pend_req_comp2io, " (value will be reset as requested) "
+        end if
+
         ! Small multiple of pio_numiotasks has proven to perform
         ! well empirically, and we do not want to allow maximum for
         ! very large process count runs. Can improve this by
         ! communicating between iotasks first, and then non-iotasks
         ! to iotasks (TO DO)
-        write(shr_log_unit, *) "Invalid PIO rearranger comm max pend req (comp2io), ",&
-             pio_rearr_comm_max_pend_req_comp2io
         write(shr_log_unit, *) "Resetting PIO rearranger comm max pend req (comp2io) to ", &
              max(PIO_REARR_COMM_DEF_MAX_PEND_REQ, 2 * pio_numiotasks)
         buf(3) = max(PIO_REARR_COMM_DEF_MAX_PEND_REQ, 2 * pio_numiotasks)
@@ -846,7 +854,15 @@ contains
       ! buf(6) = max_pend_req_io2comp
       if((pio_rearr_comm_max_pend_req_io2comp <= 0) .and. &
           (pio_rearr_comm_max_pend_req_io2comp /= PIO_REARR_COMM_UNLIMITED_PEND_REQ)) then
-        write(shr_log_unit, *) "Invalid PIO rearranger comm max pend req (io2comp), ", pio_rearr_comm_max_pend_req_io2comp
+
+        if(pio_rearr_comm_max_pend_req_io2comp /= REARR_COMM_DEF_MAX_PEND_REQ_RESET) then
+          write(shr_log_unit, *) "Invalid PIO rearranger comm max pend req (io2comp), ",&
+               pio_rearr_comm_max_pend_req_io2comp
+        else
+          write(shr_log_unit, *) "User-specified PIO rearranger comm max pend req (io2comp), ",&
+               pio_rearr_comm_max_pend_req_io2comp, " (value will be reset as requested) "
+        end if
+
         write(shr_log_unit, *) "Resetting PIO rearranger comm max pend req (io2comp) to ", PIO_REARR_COMM_DEF_MAX_PEND_REQ
         buf(6) = PIO_REARR_COMM_DEF_MAX_PEND_REQ
       else
@@ -867,16 +883,6 @@ contains
         buf(8) = 0
       end if
 
-      ! Log the rearranger options
-      write(shr_log_unit, *) "PIO rearranger options:"
-      write(shr_log_unit, *) "  comm type     =", pio_rearr_comm_type
-      write(shr_log_unit, *) "  comm fcd      =", pio_rearr_comm_fcd
-      write(shr_log_unit, *) "  max pend req (comp2io)  =", pio_rearr_comm_max_pend_req_comp2io
-      write(shr_log_unit, *) "  enable_hs (comp2io)     =", pio_rearr_comm_enable_hs_comp2io
-      write(shr_log_unit, *) "  enable_isend (comp2io)  =", pio_rearr_comm_enable_isend_comp2io
-      write(shr_log_unit, *) "  max pend req (io2comp)  =", pio_rearr_comm_max_pend_req_io2comp
-      write(shr_log_unit, *) "  enable_hs (io2comp)    =", pio_rearr_comm_enable_hs_io2comp
-      write(shr_log_unit, *) "  enable_isend (io2comp)  =", pio_rearr_comm_enable_isend_io2comp
     end if
 
     call shr_mpi_bcast(buf, comm)
@@ -912,6 +918,27 @@ contains
       pio_rearr_opt_i2c_enable_isend = .false.
     else
       pio_rearr_opt_i2c_enable_isend = .true.
+    end if
+
+    if(rank == 0) then
+      ! Log the rearranger options
+      write(shr_log_unit, *) "PIO rearranger options:"
+      write(shr_log_unit, *) "  comm type     = ", trim(pio_rearr_comm_type)
+      write(shr_log_unit, *) "  comm fcd      = ", trim(pio_rearr_comm_fcd)
+      if(pio_rearr_opt_c2i_max_pend_req == PIO_REARR_COMM_UNLIMITED_PEND_REQ) then
+        write(shr_log_unit, *) "  max pend req (comp2io)  = PIO_REARR_COMM_UNLIMITED_PEND_REQ (-1)"
+      else
+        write(shr_log_unit, *) "  max pend req (comp2io)  = ", pio_rearr_opt_c2i_max_pend_req
+      end if
+      write(shr_log_unit, *) "  enable_hs (comp2io)     = ", pio_rearr_opt_c2i_enable_hs
+      write(shr_log_unit, *) "  enable_isend (comp2io)  = ", pio_rearr_opt_c2i_enable_isend
+      if(pio_rearr_opt_i2c_max_pend_req == PIO_REARR_COMM_UNLIMITED_PEND_REQ) then
+        write(shr_log_unit, *) "  max pend req (io2comp)  = PIO_REARR_COMM_UNLIMITED_PEND_REQ (-1)"
+      else
+        write(shr_log_unit, *) "  max pend req (io2comp)  = ", pio_rearr_opt_i2c_max_pend_req
+      end if
+      write(shr_log_unit, *) "  enable_hs (io2comp)    = ", pio_rearr_opt_i2c_enable_hs
+      write(shr_log_unit, *) "  enable_isend (io2comp)  = ", pio_rearr_opt_i2c_enable_isend
     end if
   end subroutine
 !===============================================================================

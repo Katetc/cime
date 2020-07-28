@@ -8,13 +8,15 @@
 
 import datetime
 import re
+import hashlib
 
 from CIME.XML.standard_module_setup import *
 from CIME.namelist import Namelist, parse, \
     character_literal_to_string, string_to_character_literal, \
     expand_literal_list, compress_literal_list, merge_literal_lists
 from CIME.XML.namelist_definition import NamelistDefinition
-from CIME.utils import expect
+from CIME.utils import expect, safe_copy
+from CIME.XML.stream import Stream
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,8 @@ _var_ref_re = re.compile(r"\$(\{)?(?P<name>\w+)(?(1)\})")
 
 _ymd_re = re.compile(r"%(?P<digits>[1-9][0-9]*)?y(?P<month>m(?P<day>d)?)?")
 
-_stream_file_template = """
+_stream_mct_file_template = """<?xml version="1.0"?>
+<file id="stream" version="1.0">
 <dataSource>
    GENERIC
 </dataSource>
@@ -51,6 +54,30 @@ _stream_file_template = """
       {offset}
    </offset>
 </fieldInfo>
+</file>
+"""
+
+_stream_nuopc_file_template = """
+  <stream_info name="{streamname}">
+   <taxmode>{taxmode}</taxmode>
+   <tInterpAlgo>{tintalgo}</tInterpAlgo>
+   <readMode>{readmode}</readMode>
+   <mapalgo>{mapalgo}</mapalgo>
+   <dtlimit>{dtlimit}</dtlimit>
+   <yearFirst>{yearFirst}</yearFirst>
+   <yearLast>{yearLast}</yearLast>
+   <yearAlign>{yearAlign}</yearAlign>
+   <stream_vectors>{vectors}</stream_vectors>
+   <stream_mesh_file>{data_meshfile}</stream_mesh_file>
+   <stream_data_files>
+      {data_filenames}
+   </stream_data_files>
+   <stream_data_variables>
+      {data_varnames}
+   </stream_data_variables>
+   <stream_offset>{offset}</stream_offset>
+ </stream_info>
+
 """
 
 class NamelistGenerator(object):
@@ -93,7 +120,7 @@ class NamelistGenerator(object):
     def __exit__(self, *_):
         return False
 
-    def init_defaults(self, infiles, config, skip_groups=None, skip_entry_loop=None ):
+    def init_defaults(self, infiles, config, skip_groups=None, skip_entry_loop=False):
         """Return array of names of all definition nodes
         """
         # first clean out any settings left over from previous calls
@@ -126,8 +153,8 @@ class NamelistGenerator(object):
         if not skip_entry_loop:
             for entry in entry_nodes:
                 self.add_default(self._definition.get(entry, "id"))
-        else:
-            return [self._definition.get(entry, "id") for entry in entry_nodes]
+
+        return [self._definition.get(entry, "id") for entry in entry_nodes]
 
     @staticmethod
     def quote_string(string):
@@ -144,37 +171,39 @@ class NamelistGenerator(object):
         """Transform a literal list as needed for `get_value`."""
         var_type, _, var_size, = self._definition.split_type_string(name)
         if len(literals) > 0:
-            value = expand_literal_list(literals)
+            values = expand_literal_list(literals)
         else:
-            value = ''
-            return value
-        for i, scalar in enumerate(value):
-            if scalar == '':
-                value[i] = None
-            elif var_type == 'character':
-                value[i] = character_literal_to_string(scalar)
-        if var_size == 1:
-            return value[0]
-        else:
-            return value
+            return ""
 
-    def _to_namelist_literals(self, name, value):
+        for i, scalar in enumerate(values):
+            if scalar == '':
+                values[i] = None
+            elif var_type == 'character':
+                values[i] = character_literal_to_string(scalar)
+
+        if var_size == 1:
+            return values[0]
+        else:
+            return values
+
+    def _to_namelist_literals(self, name, values):
         """Transform a literal list as needed for `set_value`.
 
         This is the inverse of `_to_python_value`, except that many of the
         changes have potentially already been performed.
         """
         var_type, _, var_size, =  self._definition.split_type_string(name)
-        if var_size == 1 and not isinstance(value, list):
-            value = [value]
-        for i, scalar in enumerate(value):
+        if var_size == 1 and not isinstance(values, list):
+            values = [values]
+
+        for i, scalar in enumerate(values):
             if scalar is None:
-                value[i] = ""
+                values[i] = ""
             elif var_type == 'character':
                 expect(not isinstance(scalar, list), name)
-                value[i] = self.quote_string(scalar)
-        return compress_literal_list(value)
+                values[i] = self.quote_string(scalar)
 
+        return compress_literal_list(values)
 
     def get_value(self, name):
         """Get the current value of a given namelist variable.
@@ -264,7 +293,8 @@ class NamelistGenerator(object):
             while match:
                 env_val = self._case.get_value(match.group('name'))
                 expect(env_val is not None,
-                       "Namelist default for variable {} refers to unknown XML variable {}.".format(name, match.group('name')))
+                       "Namelist default for variable {} refers to unknown XML variable {}.".
+                       format(name, match.group('name')))
                 scalar = scalar.replace(match.group(0), str(env_val), 1)
                 match = _var_ref_re.search(scalar)
             default[i] = scalar
@@ -295,13 +325,12 @@ class NamelistGenerator(object):
         self.clean_streams()
         self._namelist.clean_groups()
 
-
     def _sub_fields(self, varnames):
         """Substitute indicators with given values in a list of fields.
 
         Replace any instance of the following substring indicators with the
         appropriate values:
-            %glc = two-digit GLC elevation class from 01 through glc_nec
+            %glc = two-digit GLC elevation class from 00 through glc_nec
 
         The difference between this function and `_sub_paths` is that this
         function is intended to be used for variable names (especially from the
@@ -316,6 +345,7 @@ class NamelistGenerator(object):
              s2x_Ss_tsrf%glc   tsrf%glc
          then the returned array will be:
              foo               bar
+             s2x_Ss_tsrf00     tsrf00
              s2x_Ss_tsrf01     tsrf01
              s2x_Ss_tsrf02     tsrf02
              s2x_Ss_tsrf03     tsrf03
@@ -327,11 +357,9 @@ class NamelistGenerator(object):
                 continue
             if "%glc" in line:
                 if self._case.get_value('GLC_NEC') == 0:
-                    glc_nec_indices = [0]
+                    glc_nec_indices = []
                 else:
-                    glc_nec_indices = list(range(self._case.get_value('GLC_NEC')))
-                glc_nec_indices.append(glc_nec_indices[-1] + 1)
-                glc_nec_indices.pop(0)
+                    glc_nec_indices = range(self._case.get_value('GLC_NEC')+1)
                 for i in glc_nec_indices:
                     new_lines.append(line.replace("%glc", "{:02d}".format(i)))
             else:
@@ -412,7 +440,17 @@ class NamelistGenerator(object):
                     new_lines.append(new_line)
         return "\n".join(new_lines)
 
-    def create_stream_file_and_update_shr_strdata_nml(self, config, #pylint:disable=too-many-locals
+    @staticmethod
+    def _add_xml_delimiter(list_to_deliminate, delimiter):
+        expect(delimiter and not " " in delimiter, "Missing or badly formed delimiter")
+        pred = "<{}>".format(delimiter)
+        postd = "</{}>".format(delimiter)
+        for n,_ in enumerate(list_to_deliminate):
+            list_to_deliminate[n] = pred + list_to_deliminate[n].strip() + postd
+        return "\n      ".join(list_to_deliminate)
+
+
+    def create_stream_file_and_update_shr_strdata_nml(self, config, caseroot, #pylint:disable=too-many-locals
                            stream, stream_path, data_list_path):
         """Write the pseudo-XML file corresponding to a given stream.
 
@@ -426,60 +464,182 @@ class NamelistGenerator(object):
         `data_list_path` - Path of file to append input data information to.
         """
 
-        # Stream-specific configuration.
+        if os.path.exists(stream_path):
+            os.unlink(stream_path)
+        user_stream_path = os.path.join(caseroot, "user_"+os.path.basename(stream_path))
+
+        # Use the user's stream file, or create one if necessary.
         config = config.copy()
         config["stream"] = stream
 
-        # Figure out the details of this stream.
-        if stream in ("prescribed", "copyall"):
-            # Assume only one file for prescribed mode!
-            grid_file = self.get_default("strm_grid_file", config)
-            domain_filepath, domain_filenames = os.path.split(grid_file)
-            data_file = self.get_default("strm_data_file", config)
-            data_filepath, data_filenames = os.path.split(data_file)
+
+        # Stream-specific configuration.
+        if os.path.exists(user_stream_path):
+            safe_copy(user_stream_path, stream_path)
+            strmobj = Stream(infile=stream_path)
+            domain_filepath = strmobj.get_value("domainInfo/filePath")
+            data_filepath = strmobj.get_value("fieldInfo/filePath")
+            domain_filenames = strmobj.get_value("domainInfo/fileNames")
+            data_filenames = strmobj.get_value("fieldInfo/fileNames")
         else:
-            domain_filepath = self.get_default("strm_domdir", config)
-            domain_filenames = self.get_default("strm_domfil", config)
-            data_filepath = self.get_default("strm_datdir", config)
-            data_filenames = self.get_default("strm_datfil", config)
+            # Figure out the details of this stream.
+            if stream in ("prescribed", "copyall"):
+                # Assume only one file for prescribed mode!
+                grid_file = self.get_default("strm_grid_file", config)
+                domain_filepath, domain_filenames = os.path.split(grid_file)
+                data_file = self.get_default("strm_data_file", config)
+                data_filepath, data_filenames = os.path.split(data_file)
+            else:
+                domain_filepath = self.get_default("strm_domdir", config)
+                domain_filenames = self.get_default("strm_domfil", config)
+                data_filepath = self.get_default("strm_datdir", config)
+                data_filenames = self.get_default("strm_datfil", config)
 
-        domain_varnames = self._sub_fields(self.get_default("strm_domvar", config))
-        data_varnames = self._sub_fields(self.get_default("strm_datvar", config))
-        offset = self.get_default("strm_offset", config)
-        year_start = int(self.get_default("strm_year_start", config))
-        year_end = int(self.get_default("strm_year_end", config))
-        data_filenames = self._sub_paths(data_filenames, year_start, year_end)
-        domain_filenames = self._sub_paths(domain_filenames, year_start, year_end)
+            domain_varnames = self._sub_fields(self.get_default("strm_domvar", config))
+            data_varnames = self._sub_fields(self.get_default("strm_datvar", config))
+            offset = self.get_default("strm_offset", config)
+            year_start = int(self.get_default("strm_year_start", config))
+            year_end = int(self.get_default("strm_year_end", config))
+            data_filenames = self._sub_paths(data_filenames, year_start, year_end)
+            domain_filenames = self._sub_paths(domain_filenames, year_start, year_end)
 
-        # Overwrite domain_file if should be set from stream data
-        if domain_filenames == 'null':
-            domain_filepath = data_filepath
-            domain_filenames = data_filenames.splitlines()[0]
+            # Overwrite domain_file if should be set from stream data
+            if domain_filenames == 'null':
+                domain_filepath = data_filepath
+                domain_filenames = data_filenames.splitlines()[0]
 
-        stream_file_text = _stream_file_template.format(
-            domain_varnames=domain_varnames,
-            domain_filepath=domain_filepath,
-            domain_filenames=domain_filenames,
-            data_varnames=data_varnames,
-            data_filepath=data_filepath,
-            data_filenames=data_filenames,
-            offset=offset,
-        )
+            stream_file_text = _stream_mct_file_template.format(
+                domain_varnames=domain_varnames,
+                domain_filepath=domain_filepath,
+                domain_filenames=domain_filenames,
+                data_varnames=data_varnames,
+                data_filepath=data_filepath,
+                data_filenames=data_filenames,
+                offset=offset,
+            )
 
-        with open(stream_path, 'w') as stream_file:
-            stream_file.write(stream_file_text)
+            with open(stream_path, 'w') as stream_file:
+                stream_file.write(stream_file_text)
+
+        lines_hash = self._get_input_file_hash(data_list_path)
         with open(data_list_path, 'a') as input_data_list:
             for i, filename in enumerate(domain_filenames.split("\n")):
                 if filename.strip() == '':
                     continue
-                filepath = os.path.join(domain_filepath, filename.strip())
-                input_data_list.write("domain{:d} = {}\n".format(i+1, filepath))
+                filepath, filename = os.path.split(filename)
+                if not filepath:
+                    filepath = os.path.join(domain_filepath, filename.strip())
+                string = "domain{:d} = {}\n".format(i+1, filepath)
+                hashValue = hashlib.md5(string.rstrip().encode('utf-8')).hexdigest()
+                if hashValue not in lines_hash:
+                    input_data_list.write(string)
             for i, filename in enumerate(data_filenames.split("\n")):
                 if filename.strip() == '':
                     continue
                 filepath = os.path.join(data_filepath, filename.strip())
-                input_data_list.write("file{:d} = {}\n".format(i+1, filepath))
+                string = "file{:d} = {}\n".format(i+1, filepath)
+                hashValue = hashlib.md5(string.rstrip().encode('utf-8')).hexdigest()
+                if hashValue not in lines_hash:
+                    input_data_list.write(string)
         self.update_shr_strdata_nml(config, stream, stream_path)
+
+    def create_nuopc_stream_files(self, config, caseroot, #pylint:disable=too-many-locals
+                                  streams, stream_path, data_list_path):
+        """Write the XML files for all component streams.
+
+        Arguments:
+        `config` - Used to look up namelist defaults. This is used *in addition*
+                   to the `config` used to construct the namelist generator. The
+                   main reason to supply additional configuration options here
+                   is to specify stream-specific settings.
+        `stream` - Name of the stream.
+        `stream_path` - Path to write the stream file to.
+        `data_list_path` - Path of file to append input data information to.
+        """
+
+        if os.path.exists(stream_path):
+            os.unlink(stream_path)
+        user_stream_path = os.path.join(caseroot, "user_"+os.path.basename(stream_path))
+
+        # Use the user's stream file, or create one if necessary.
+        config = config.copy()
+        # Stream-specific configuration.
+        if os.path.exists(user_stream_path):
+            # user stream file is specified - use an already created stream txt file
+            safe_copy(user_stream_path, stream_path)
+            strmobj = Stream(infile=stream_path)
+            stream_meshfile = strmobj.get_value("stream_info/stream_mesh_file")
+            stream_datafiles = strmobj.get_value("stream_info/stream_data_files")
+        else:
+            with open(stream_path, 'w') as stream_file:
+                stream_file.write('<?xml version="1.0"?>\n')
+                stream_file.write('<file id="stream" version="2.0">\n')
+
+            for stream in streams:
+                if stream is None:
+                    continue
+                config["stream"] = stream
+                stream_meshfile = self.get_default("strm_mesh", config)
+                stream_datafiles = self.get_default("strm_datfil", config)
+                stream_variables = self._sub_fields(self.get_default("strm_datvar", config))
+
+                # determine data_filenames - first set year_start, year_end and offset as input
+                # to creating data_filenames
+                year_start = int(self.get_default("strm_year_start", config))
+                year_end = int(self.get_default("strm_year_end", config))
+
+                # needed for input data list
+                stream_datafiles = self._sub_paths(stream_datafiles, year_start, year_end)
+
+                # determine stream time offset
+                taxmode = self.get_default("taxmode", config)[0]
+                tintalgo = self.get_default("tintalgo", config)[0]
+                dtlimit = self.get_default("dtlimit", config)[0]
+                mapalgo = self.get_default("mapalgo", config)[0]
+                readmode = self.get_default("readmode", config)[0]
+                vectors = self.get_default("vectors", config)
+                yearFirst = self.get_default("strm_year_start", config)
+                yearLast =  self.get_default("strm_year_end", config)
+                yearAlign = self.get_default("strm_year_align", config)
+                stream_offset = self.get_default("strm_offset", config)
+                stream_datafiles_delimited = self._add_xml_delimiter(stream_datafiles.split("\n"), "file")
+                stream_variables = self._add_xml_delimiter(stream_variables.split("\n"), "var")
+
+                # create stream txt file
+                stream_file_text = _stream_nuopc_file_template.format(
+                    streamname=stream,
+                    data_meshfile=stream_meshfile,
+                    data_filenames=stream_datafiles_delimited,
+                    data_varnames=stream_variables,
+                    offset=stream_offset,
+                    vectors=vectors,
+                    yearFirst=yearFirst,
+                    yearLast=yearLast,
+                    yearAlign=yearAlign,
+                    readmode=readmode,
+                    dtlimit=dtlimit,
+                    taxmode=taxmode,
+                    mapalgo=mapalgo,
+                    tintalgo=tintalgo)
+                with open(stream_path, 'a') as stream_file:
+                    stream_file.write(stream_file_text)
+
+            # add entries to input data list
+            lines_hash = self._get_input_file_hash(data_list_path)
+            with open(data_list_path, 'a') as input_data_list:
+                string = "mesh = {}\n".format(stream_meshfile)
+                hashValue = hashlib.md5(string.rstrip().encode('utf-8')).hexdigest()
+                if hashValue not in lines_hash:
+                    input_data_list.write(string)
+                for i, filename in enumerate(stream_datafiles.split("\n")):
+                    if filename.strip() == '':
+                        continue
+                    string = "file{:d} = {}\n".format(i+1, filename)
+                    hashValue = hashlib.md5(string.rstrip().encode('utf-8')).hexdigest()
+                    if hashValue not in lines_hash:
+                        input_data_list.write(string)
+        with open(stream_path, 'a') as stream_file:
+            stream_file.write("</file>\n")
 
     def update_shr_strdata_nml(self, config, stream, stream_path):
         """Updates values for the `shr_strdata_nml` namelist group.
@@ -564,9 +724,9 @@ class NamelistGenerator(object):
                         continue
                     file_path = character_literal_to_string(literal)
                     # NOTE - these are hard-coded here and a better way is to make these extensible
-                    if file_path == 'UNSET' or file_path == 'idmap':
+                    if file_path == 'UNSET' or file_path == 'idmap' or file_path == 'idmap_ignore' or file_path == 'unset':
                         continue
-                    if file_path == 'null':
+                    if file_path in ('null','create_mesh'):
                         continue
                     file_path = self.set_abs_file_path(file_path)
                     if not os.path.exists(file_path):
@@ -590,39 +750,57 @@ class NamelistGenerator(object):
     def get_group_variables(self, group_name):
         return self._namelist.get_group_variables(group_name)
 
+    def _get_input_file_hash(self, data_list_path):
+        lines_hash = set()
+        if os.path.isfile(data_list_path):
+            with open(data_list_path, "r") as input_data_list:
+                for line in input_data_list:
+                    hashValue = hashlib.md5(line.rstrip().encode('utf-8')).hexdigest()
+                    logger.debug( "Found line {} with hash {}".format(line,hashValue))
+                    lines_hash.add(hashValue)
+        return lines_hash
 
-    def _write_input_files(self, input_data_list):
+    def _write_input_files(self, data_list_path):
         """Write input data files to list."""
-        for group_name in self._namelist.get_group_names():
-            for variable_name in self._namelist.get_variable_names(group_name):
-                input_pathname = self._definition.get_node_element_info(variable_name, "input_pathname")
-                if input_pathname is not None:
-                    # This is where we end up for all variables that are paths
-                    # to input data files.
-                    literals = self._namelist.get_variable_value(group_name, variable_name)
-                    for literal in literals:
-                        file_path = character_literal_to_string(literal)
-                        # NOTE - these are hard-coded here and a better way is to make these extensible
-                        if file_path == 'UNSET' or file_path == 'idmap':
-                            continue
-                        if input_pathname == 'abs':
-                            # No further mangling needed for absolute paths.
-                            # At this point, there are overwrites that should be ignored
-                            if not os.path.isabs(file_path):
+        # append to input_data_list file
+        lines_hash = self._get_input_file_hash(data_list_path)
+        with open(data_list_path, "a") as input_data_list:
+            for group_name in self._namelist.get_group_names():
+                for variable_name in self._namelist.get_variable_names(group_name):
+                    input_pathname = self._definition.get_node_element_info(variable_name, "input_pathname")
+                    if input_pathname is not None:
+                        # This is where we end up for all variables that are paths
+                        # to input data files.
+                        literals = self._namelist.get_variable_value(group_name, variable_name)
+                        for literal in literals:
+                            file_path = character_literal_to_string(literal)
+                            # NOTE - these are hard-coded here and a better way is to make these extensible
+                            if file_path == 'UNSET' or file_path == 'idmap' or file_path == 'idmap_ignore':
                                 continue
+                            if input_pathname == 'abs':
+                                # No further mangling needed for absolute paths.
+                                # At this point, there are overwrites that should be ignored
+                                if not os.path.isabs(file_path):
+                                    continue
+                                else:
+                                    pass
+                            elif input_pathname.startswith('rel:'):
+                                # The part past "rel" is the name of a variable that
+                                # this variable specifies its path relative to.
+                                root_var = input_pathname[4:]
+                                root_dir = self.get_value(root_var)
+                                file_path = os.path.join(root_dir, file_path)
                             else:
-                                pass
-                        elif input_pathname.startswith('rel:'):
-                            # The part past "rel" is the name of a variable that
-                            # this variable specifies its path relative to.
-                            root_var = input_pathname[4:]
-                            root_dir = self.get_value(root_var)
-                            file_path = os.path.join(root_dir, file_path)
-                        else:
-                            expect(False,
-                                   "Bad input_pathname value: {}.".format(input_pathname))
-                        # Write to the input data list.
-                        input_data_list.write("{} = {}\n".format(variable_name, file_path))
+                                expect(False,
+                                       "Bad input_pathname value: {}.".format(input_pathname))
+                            # Write to the input data list.
+                            string = "{} = {}".format(variable_name, file_path)
+                            hashValue = hashlib.md5(string.rstrip().encode('utf-8')).hexdigest()
+                            if hashValue not in lines_hash:
+                                logger.debug("Adding line {} with hash {}".format(string,hashValue))
+                                input_data_list.write(string+"\n")
+                            else:
+                                logger.debug("Line already in file {}".format(string))
 
     def write_output_file(self, namelist_file, data_list_path=None, groups=None, sorted_groups=True):
         """Write out the namelists and input data files.
@@ -646,18 +824,34 @@ class NamelistGenerator(object):
         self._namelist.write(namelist_file, groups=groups, sorted_groups=sorted_groups)
 
         if data_list_path is not None:
-            # append to input_data_list file
-            with open(data_list_path, "a") as input_data_list:
-                self._write_input_files(input_data_list)
+            self._write_input_files(data_list_path)
 
+
+    # For MCT
     def add_nmlcontents(self, filename, group, append=True, format_="nmlcontents", sorted_groups=True):
         """ Write only contents of nml group """
         self._namelist.write(filename, groups=[group], append=append, format_=format_, sorted_groups=sorted_groups)
 
     def write_seq_maps(self, filename):
-        """ Write out seq_maps.rc"""
+        """ Write mct out seq_maps.rc"""
         self._namelist.write(filename, groups=["seq_maps"], format_="rc")
 
     def write_modelio_file(self, filename):
-        """ Write  component modelio files"""
+        """ Write mct component modelio files"""
         self._namelist.write(filename, groups=["modelio", "pio_inparm"], format_="nml")
+
+    # For NUOPC
+    def write_nuopc_modelio_file(self, filename):
+        """ Write nuopc component modelio files"""
+        self._namelist.write(filename, groups=["pio_inparm"], format_="nml")
+
+    def write_nuopc_config_file(self, filename, data_list_path=None ):
+        """ Write the nuopc config file"""
+        self._definition.validate(self._namelist)
+        groups = self._namelist.get_group_names()
+        # write the config file
+        self._namelist.write_nuopc(filename, groups=groups, sorted_groups=False)
+
+        # append to input_data_list file
+        if data_list_path is not None:
+            self._write_input_files(data_list_path)

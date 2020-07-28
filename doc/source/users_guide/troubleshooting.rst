@@ -6,24 +6,29 @@ Troubleshooting
 Troubleshooting case creation
 -----------------------------
 
-Generally, **create_newcase** errors are reported to the terminal and should provide some guidance about what caused them.
+Generally, `create_newcase  <../Tools_user/create_newcase.html>`_ errors are reported to the terminal and should provide some guidance about what caused them.
 
-If **create_newcase** fails on a relatively generic error, first check to make sure the command-line arguments match the interface's specification. See the help text to review usage.
+If `create_newcase  <../Tools_user/create_newcase.html>`_ fails on a relatively generic error, first check to make sure the command-line arguments match the interface's specification. See the help text to review usage.
 ::
 
    > create_newcase --help
+
+Troubleshooting problems in cime scripts
+----------------------------------------
+
+If any of the python-based cime scripts are dying in a mysterious way, more information can be obtained by rerunning the script with the ``--debug`` option.
 
 Troubleshooting job submission
 -------------------------------
 
 Most problems associated with submission or launch are site-specific.
-The batch and run aspects of the **case.submit** script are created by parsing the variables in **$CASEROOT/env_batch.xml** file.
+The batch and run aspects of the `case.submit  <../Tools_user/case.submit.html>`_ script are created by parsing the variables in **$CASEROOT/env_batch.xml** file.
 
 Take these steps to check for problems:
 
 1. Review the batch submission options in **$CASEROOT/env_batch.xml**. Confirm that they are consistent with the site-specific batch environment, and that the queue names, time limits, and hardware processor request make sense and are consistent with the case.
 
-2. Make sure that **case.submit** uses the correct batch job tool for submitting the **case.run** script. Depending on the batch environment, it might be **bsub**, **qsub** or another command. Also confirm if a redirection "<" character is required. The information for how **case.submit** submits jobs appears at the end of the standard output stream.
+2. Make sure that `case.submit  <../Tools_user/case.submit.html>`_ uses the correct batch job tool for submitting the `case.submit  <../Tools_user/case.submit.html>`_ script. Depending on the batch environment, it might be **bsub**, **qsub** or another command. Also confirm if a redirection "<" character is required. The information for how **case.submit** submits jobs appears at the end of the standard output stream.
 
 Troubleshooting runtime problems
 ---------------------------------
@@ -33,11 +38,11 @@ To see if a run completed successfully, check the last several lines of the **cp
 Check these things first when a job fails:
 
 - Did the model time out?
- 
+
 - Was a disk quota limit hit?
- 
+
 - Did a machine go down?
- 
+
 - Did a file system become full?
 
 If any of those things happened, take appropriate corrective action (see suggestions below) and resubmit the job.
@@ -57,7 +62,7 @@ If it is not clear that any of the above caused a case to fail, there are severa
 
 - Check any automated email from the job about why a job failed. Some sites' batch schedulers send these.
 
-- Check the archive directory: **$DOUT_S_ROOT/$CASE**.   If a case failed, the log files 
+- Check the archive directory: **$DOUT_S_ROOT/$CASE**.   If a case failed, the log files
   or data may still have been archived.
 
 **Common errors**
@@ -100,3 +105,22 @@ Compare the restart files against the sizes of a previous restart. If they don't
 See `Restarting a run <http://esmci.github.io/cime/users_guide/running-a-case.html#restarting-a-run>`_.
 
 It is not uncommon for nodes to fail on HPC systems or for access to large file systems to hang. Before you file a bug report, make sure a case fails consistently in the same place.
+
+**Rerunning with additional debugging information**
+
+There are a few changes you can make to your case to get additional information that aids in debugging:
+
+- Increase the value of the run-time xml variable ``INFO_DBUG``: ``./xmlchange INFO_DBUG=2``.
+  This adds more information to the cpl.log file that can be useful if you can't tell what component is aborting the run, or where bad coupling fields are originating.
+  (This does NOT require rebuilding.)
+
+- Try rebuilding and rerunning with the build-time xml variable ``DEBUG`` set to ``TRUE``: ``./xmlchange DEBUG=TRUE``.
+
+  - This adds various runtime checks that trap conditions such as out-of-bounds array indexing, divide by 0, and other floating point exceptions (the exact conditions checked depend on flags set in ``config_compilers.xml``).
+
+  - The best way to do this is often to create a new case and run ``./xmlchange DEBUG=TRUE`` before running ``./case.build``.
+    However, if it is hard for you to recreate your case, then you can run that xmlchange command from your existing case; then you must run ``./case.build --clean-all`` before rerunning ``./case.build``.
+
+  - Note that the model will run significantly slower in this mode, so this may not be feasible if the model has to run a long time before producing the error.
+    (Sometimes it works well to run the model until shortly before the error in non-debug mode, have it write restart files, then restart after rebuilding in debug mode.)
+    Also note that answers will change slightly, so if the error arises from a rare condition, then it may not show up in this mode.

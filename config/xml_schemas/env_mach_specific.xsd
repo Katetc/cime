@@ -6,10 +6,13 @@
 <xs:attribute name="lang" type="xs:NCName"/>
 <xs:attribute name="compiler" type="xs:string"/>
 <xs:attribute name="DEBUG" type="upperBoolean"/>
+<xs:attribute name="PIO_VERSION" type="xs:integer"/>
 <xs:attribute name="mpilib" type="xs:string"/>
+<xs:attribute name="comp_interface" type="xs:string"/>
 <xs:attribute name="SMP_PRESENT" type="xs:string"/>
 <xs:attribute name="value" type="xs:string"/>
 <xs:attribute name="unit_testing" type="xs:boolean"/>
+<xs:attribute name="queue" type="xs:string"/>
 
 <!-- simple elements -->
 <xs:element name="header" type="xs:string"/>
@@ -96,7 +99,9 @@
       </xs:sequence>
       <xs:attribute ref="compiler" />
       <xs:attribute ref="DEBUG" />
+      <xs:attribute ref="PIO_VERSION" />
       <xs:attribute ref="mpilib"/>
+      <xs:attribute ref="comp_interface"/>
     </xs:complexType>
   </xs:element>
 
@@ -147,10 +152,13 @@
       <xs:sequence>
         <xs:element ref="executable"/>
         <xs:element minOccurs="0" maxOccurs="1" ref="arguments"/>
+        <xs:element minOccurs="0" maxOccurs="1" name="run_exe" type="xs:string"/>
+        <xs:element minOccurs="0" maxOccurs="1" name="run_misc_suffix" type="xs:string"/>
       </xs:sequence>
       <xs:attribute ref="compiler"/>
       <xs:attribute ref="mpilib"/>
       <xs:attribute name="threaded" type="xs:boolean"/>
+      <xs:attribute ref="queue"/>
       <xs:attribute ref="unit_testing"/>
     </xs:complexType>
   </xs:element>
