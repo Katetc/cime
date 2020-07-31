@@ -6,6 +6,7 @@ from CIME.XML.standard_module_setup import *
 from CIME.XML.archive_base import ArchiveBase
 from CIME.XML.files import Files
 from CIME.utils import expect, get_model
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +26,14 @@ class Archive(ArchiveBase):
             files = Files()
 
         components_node = env_archive.make_child("components", attributes={"version":"2.0"})
-
+        arch_components = deepcopy(components)
         model = get_model()
-        if 'drv' not in components:
-            components.append('drv')
-        if 'dart' not in components and model == 'cesm':
-            components.append('dart')
+        if 'drv' not in arch_components and model != 'ufs':
+            arch_components.append('drv')
+        if 'dart' not in arch_components and model == 'cesm':
+            arch_components.append('dart')
 
-        for comp in components:
+        for comp in arch_components:
             infile = files.get_value("ARCHIVE_SPEC_FILE", {"component":comp})
 
             if infile is not None and os.path.isfile(infile):
@@ -64,7 +65,8 @@ class Archive(ArchiveBase):
             if attr:
                 compval = files.get_value("ARCHIVE_SPEC_FILE", attribute={"component":attr})
             else:
-                compval = self.text(comp)
+                compval = self.get_resolved_value(self.text(comp))
+
             if os.path.isfile(compval):
                 config_archive_files.append(compval)
 

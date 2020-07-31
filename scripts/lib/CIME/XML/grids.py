@@ -18,8 +18,11 @@ class Grids(GenericXML):
             infile = files.get_value("GRIDS_SPEC_FILE")
         logger.debug(" Grid specification file is {}".format(infile))
         schema = files.get_schema("GRIDS_SPEC_FILE")
+        try:
+            GenericXML.__init__(self, infile, schema)
+        except:
+            expect(False, "Could not initialize Grids")
 
-        GenericXML.__init__(self, infile, schema)
         self._version = self.get_version()
 
         self._comp_gridnames = self._get_grid_names()
@@ -70,7 +73,7 @@ class Grids(GenericXML):
         gridinfo.update(domains)
 
         # determine gridmaps given component_grids
-        gridmaps = self._get_gridmaps(component_grids, driver)
+        gridmaps = self._get_gridmaps(component_grids, driver, compset)
         gridinfo.update(gridmaps)
 
         return gridinfo
@@ -111,7 +114,7 @@ class Grids(GenericXML):
                 if compset_attrib and not_compset_attrib:
                     compset_match = re.search(compset_attrib, compset)
                     not_compset_match = re.search(not_compset_attrib, compset)
-                    if compset_match is not None and not_compset_match is not None:
+                    if compset_match is not None and not_compset_match is None:
                         foundcompset = True
                         model_gridnode = node
                         logger.debug("Found match for {} with compset_match {} and not_compset_match {}"
@@ -157,7 +160,7 @@ class Grids(GenericXML):
 
         # determine component grids and associated required domains and gridmaps
         # TODO: this should be in XML, not here
-        prefix = {"atm":"a%", "lnd":"l%", "ocnice":"oi%", "rof":"r%", "wav":"w%", "glc":"g%", "mask":"m%"}
+        prefix = {"atm":"a%", "lnd":"l%", "ocnice":"oi%", "rof":"r%", "wav":"w%", "glc":"g%", "mask":"m%", "iac":"z%"}
         lname = ""
         for component_gridname in self._comp_gridnames:
             if lname:
@@ -204,7 +207,7 @@ class Grids(GenericXML):
         # use component_grids to create grids dictionary
         # TODO: this should be in XML, not here
         grids = [("atm", "a%"), ("lnd", "l%"), ("ocn", "o%"), ("mask", "m%"),\
-                 ("ice", "i%"), ("rof", "r%"), ("glc", "g%"), ("wav", "w%")]
+                 ("ice", "i%"), ("rof", "r%"), ("glc", "g%"), ("wav", "w%"), ("iac", "z%")]
         domains = {}
         mask_name = None
         if 'm%' in component_grids:
@@ -276,19 +279,29 @@ class Grids(GenericXML):
 
         return domains
 
-    def _get_gridmaps(self, component_grids, driver):
+    def _get_gridmaps(self, component_grids, driver, compset):
         """
         set all mapping files for config_grids.xml v2 schema
         """
         grids = [("atm_grid","a%"), ("lnd_grid","l%"), ("ocn_grid","o%"), \
-                 ("rof_grid","r%"), ("glc_grid","g%"), ("wav_grid","w%")]
+                 ("rof_grid","r%"), ("glc_grid","g%"), ("wav_grid","w%"), ("iac_grid","z%")]
         gridmaps = {}
 
         # (1) set all possibly required gridmaps to idmap
         required_gridmaps_node = self.get_child("required_gridmaps")
         required_gridmap_nodes = self.get_children("required_gridmap", root=required_gridmaps_node)
-        for node in required_gridmap_nodes:
+
+        tmp_gridmap_nodes = self.get_children("required_gridmap", root=required_gridmaps_node)
+        required_gridmap_nodes = []
+        for node in tmp_gridmap_nodes:
+            compset_att = self.get(node,"compset")
+            not_compset_att = self.get(node,"not_compset")
+            if compset_att and not compset_att in compset or \
+               not_compset_att and not_compset_att in compset:
+                continue
+            required_gridmap_nodes.append(node)
             gridmaps[self.text(node)] = "idmap"
+
 
         # (2) determine values gridmaps for target grid
         for idx, grid in enumerate(grids):

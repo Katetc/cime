@@ -5,8 +5,9 @@ from CIME.XML.standard_module_setup import *
 from CIME.XML.env_run import EnvRun
 from CIME.utils import append_testlog, get_model, safe_copy, get_timestamp, CIMEError
 from CIME.test_status import *
-from CIME.hist_utils import *
-from CIME.provenance import save_test_time
+from CIME.hist_utils import copy_histfiles, compare_test, generate_teststatus, \
+    compare_baseline, get_ts_synopsis, generate_baseline
+from CIME.provenance import save_test_time, get_test_success
 from CIME.locked_files import LOCKED_DIR, lock_file, is_locked
 import CIME.build as build
 
@@ -33,6 +34,9 @@ class SystemTestsCommon(object):
         self._init_locked_files(caseroot, expected)
         self._skip_pnl = False
         self._cpllog = "med" if self._case.get_value("COMP_INTERFACE")=="nuopc" else "cpl"
+        self._old_build = False
+        self._ninja     = False
+        self._dry_run   = False
 
     def _init_environment(self, caseroot):
         """
@@ -66,13 +70,16 @@ class SystemTestsCommon(object):
 
             self._case.case_setup(reset=True, test_mode=True)
 
-    def build(self, sharedlib_only=False, model_only=False):
+    def build(self, sharedlib_only=False, model_only=False, old_build=False, ninja=False, dry_run=False):
         """
         Do NOT override this method, this method is the framework that
         controls the build phase. build_phase is the extension point
         that subclasses should use.
         """
         success = True
+        self._old_build = old_build
+        self._ninja     = ninja
+        self._dry_run   = dry_run
         for phase_name, phase_bool in [(SHAREDLIB_BUILD_PHASE, not model_only),
                                        (MODEL_BUILD_PHASE, not sharedlib_only)]:
             if phase_bool:
@@ -93,7 +100,7 @@ class SystemTestsCommon(object):
                     else:
                         excmsg = "Exception during build:\n{}\n{}".format(str(e), traceback.format_exc())
 
-                    append_testlog(excmsg)
+                    append_testlog(excmsg, self._orig_caseroot)
                     raise
 
                 finally:
@@ -120,7 +127,8 @@ class SystemTestsCommon(object):
         model = self._case.get_value('MODEL')
         build.case_build(self._caseroot, case=self._case,
                          sharedlib_only=sharedlib_only, model_only=model_only,
-                         save_build_provenance=not model=='cesm')
+                         save_build_provenance=not model=='cesm',
+                         use_old=self._old_build, ninja=self._ninja, dry_run=self._dry_run)
 
     def clean_build(self, comps=None):
         if comps is None:
@@ -141,7 +149,6 @@ class SystemTestsCommon(object):
                 self._test_status.set_status(RUN_PHASE, TEST_PEND_STATUS)
 
             self.run_phase()
-
             if self._case.get_value("GENERATE_BASELINE"):
                 self._phase_modifying_call(GENERATE_PHASE, self._generate_baseline)
 
@@ -163,7 +170,7 @@ class SystemTestsCommon(object):
             else:
                 excmsg = "Exception during run:\n{}\n{}".format(str(e), traceback.format_exc())
 
-            append_testlog(excmsg)
+            append_testlog(excmsg, self._orig_caseroot)
             raise
 
         finally:
@@ -173,14 +180,41 @@ class SystemTestsCommon(object):
             with self._test_status:
                 self._test_status.set_status(RUN_PHASE, status, comments=("time={:d}".format(int(time_taken))))
 
-            if success and get_model() == "e3sm":
-                save_test_time(self._case.get_value("BASELINE_ROOT"), self._casebaseid, time_taken)
+            if get_model() == "e3sm":
+                # If run phase worked, remember the time it took in order to improve later walltime ests
+                baseline_root = self._case.get_value("BASELINE_ROOT")
+                if success:
+                    save_test_time(baseline_root, self._casebaseid, time_taken)
+
+                # If overall things did not pass, offer the user some insight into what might have broken things
+                overall_status = self._test_status.get_overall_test_status(ignore_namelists=True)
+                if overall_status != TEST_PASS_STATUS:
+                    srcroot = self._case.get_value("CIMEROOT")
+                    worked_before, last_pass, last_fail_transition = \
+                        get_test_success(baseline_root, srcroot, self._casebaseid)
+
+                    if worked_before:
+                        if last_pass is not None:
+                            # commits between last_pass and now broke things
+                            stat, out, err = run_cmd("git rev-list --first-parent {}..{}".format(last_pass, "HEAD"), from_dir=srcroot)
+                            if stat == 0:
+                                append_testlog("NEW FAIL: Potentially broken merges:\n{}".format(out), self._orig_caseroot)
+                            else:
+                                logger.warning("Unable to list potentially broken merges: {}\n{}".format(out, err))
+                    else:
+                        if last_pass is not None and last_fail_transition is not None:
+                            # commits between last_pass and last_fail_transition broke things
+                            stat, out, err = run_cmd("git rev-list --first-parent {}..{}".format(last_pass, last_fail_transition), from_dir=srcroot)
+                            if stat == 0:
+                                append_testlog("OLD FAIL: Potentially broken merges:\n{}".format(out), self._orig_caseroot)
+                            else:
+                                logger.warning("Unable to list potentially broken merges: {}\n{}".format(out, err))
 
             if get_model() == "cesm" and self._case.get_value("GENERATE_BASELINE"):
                 baseline_dir = os.path.join(self._case.get_value("BASELINE_ROOT"), self._case.get_value("BASEGEN_CASE"))
                 generate_teststatus(self._caseroot, baseline_dir)
 
-        # We return success if the run phase worked; memleaks, diffs will not be taken into account
+        # We return success if the run phase worked; memleaks, diffs will NOT be taken into account
         # with this return value.
         return success
 
@@ -260,8 +294,8 @@ class SystemTestsCommon(object):
         return allgood==0
 
     def _component_compare_copy(self, suffix):
-        comments = copy(self._case, suffix)
-        append_testlog(comments)
+        comments = copy_histfiles(self._case, suffix)
+        append_testlog(comments, self._orig_caseroot)
 
     def _component_compare_test(self, suffix1, suffix2,
                                 success_change=False,
@@ -280,7 +314,7 @@ class SystemTestsCommon(object):
         if success_change:
             success = not success
 
-        append_testlog(comments)
+        append_testlog(comments, self._orig_caseroot)
         status = TEST_PASS_STATUS if success else TEST_FAIL_STATUS
         with self._test_status:
             self._test_status.set_status("{}_{}_{}".format(COMPARE_PHASE, suffix1, suffix2), status)
@@ -349,7 +383,7 @@ class SystemTestsCommon(object):
             excmsg = "Exception during {}:\n{}\n{}".format(phase, msg, traceback.format_exc())
 
             logger.warning(excmsg)
-            append_testlog(excmsg)
+            append_testlog(excmsg, self._orig_caseroot)
 
             with self._test_status:
                 self._test_status.set_status(phase, TEST_FAIL_STATUS, comments="exception")
@@ -384,7 +418,7 @@ class SystemTestsCommon(object):
                         self._test_status.set_status(MEMLEAK_PHASE, TEST_PASS_STATUS)
                     else:
                         comment = "memleak detected, memory went from {:f} to {:f} in {:d} days".format(originalmem, finalmem, finaldate-originaldate)
-                        append_testlog(comment)
+                        append_testlog(comment, self._orig_caseroot)
                         self._test_status.set_status(MEMLEAK_PHASE, TEST_FAIL_STATUS, comments=comment)
 
     def compare_env_run(self, expected=None):
@@ -443,13 +477,13 @@ class SystemTestsCommon(object):
                     blmem = self._get_mem_usage(baselog)
                     blmem = 0 if blmem == [] else blmem[-1][1]
                     curmem = memlist[-1][1]
-                    diff = (curmem-blmem)/blmem
+                    diff = 0.0 if blmem == 0 else (curmem-blmem)/blmem
                     if diff < 0.1 and self._test_status.get_status(MEMCOMP_PHASE) is None:
                         self._test_status.set_status(MEMCOMP_PHASE, TEST_PASS_STATUS)
                     elif self._test_status.get_status(MEMCOMP_PHASE) != TEST_FAIL_STATUS:
                         comment = "Error: Memory usage increase > 10% from baseline"
                         self._test_status.set_status(MEMCOMP_PHASE, TEST_FAIL_STATUS, comments=comment)
-                        append_testlog(comment)
+                        append_testlog(comment, self._orig_caseroot)
 
     def _compare_throughput(self):
         with self._test_status:
@@ -474,14 +508,14 @@ class SystemTestsCommon(object):
                         diff = (baseline - current)/baseline
                         tolerance = self._case.get_value("TEST_TPUT_TOLERANCE")
                         if tolerance is None:
-                            tolerance = 0.25
+                            tolerance = 0.1
                         expect(tolerance > 0.0, "Bad value for throughput tolerance in test")
                         if diff < tolerance and self._test_status.get_status(THROUGHPUT_PHASE) is None:
                             self._test_status.set_status(THROUGHPUT_PHASE, TEST_PASS_STATUS)
                         elif self._test_status.get_status(THROUGHPUT_PHASE) != TEST_FAIL_STATUS:
                             comment = "Error: Computation time increase > {:d} pct from baseline".format(int(tolerance*100))
                             self._test_status.set_status(THROUGHPUT_PHASE, TEST_FAIL_STATUS, comments=comment)
-                            append_testlog(comment)
+                            append_testlog(comment, self._orig_caseroot)
 
     def _compare_baseline(self):
         """
@@ -490,7 +524,7 @@ class SystemTestsCommon(object):
         with self._test_status:
             # compare baseline
             success, comments = compare_baseline(self._case)
-            append_testlog(comments)
+            append_testlog(comments, self._orig_caseroot)
             status = TEST_PASS_STATUS if success else TEST_FAIL_STATUS
             baseline_name = self._case.get_value("BASECMP_CASE")
             ts_comments = os.path.dirname(baseline_name) + ": " + get_ts_synopsis(comments)
@@ -503,7 +537,7 @@ class SystemTestsCommon(object):
         with self._test_status:
             # generate baseline
             success, comments = generate_baseline(self._case)
-            append_testlog(comments)
+            append_testlog(comments, self._orig_caseroot)
             status = TEST_PASS_STATUS if success else TEST_FAIL_STATUS
             baseline_name = self._case.get_value("BASEGEN_CASE")
             self._test_status.set_status(GENERATE_PHASE, status, comments=os.path.dirname(baseline_name))
@@ -591,6 +625,9 @@ fi
         self._set_script(script)
         FakeTest.build_phase(self,
                        sharedlib_only=sharedlib_only, model_only=model_only)
+
+class TESTRUNDIFFRESUBMIT(TESTRUNDIFF):
+    pass
 
 class TESTTESTDIFF(FakeTest):
 

@@ -38,6 +38,7 @@ endif ()
 
 # Include flib source and binary directories (for Fortran modules)
 target_include_directories (piof
+  PUBLIC ${CMAKE_BINARY_DIR}
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
   PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -115,7 +116,7 @@ else ()
   ExternalProject_Add (genf90
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/genf90
     GIT_REPOSITORY https://github.com/PARALLELIO/genf90
-    GIT_TAG genf90_140121
+    GIT_TAG genf90_200608
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""

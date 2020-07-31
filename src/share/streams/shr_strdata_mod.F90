@@ -42,7 +42,7 @@ module shr_strdata_mod
   public shr_strdata_print
   public shr_strdata_init
   public shr_strdata_init_model_domain
-  public shr_strdata_init_streams 
+  public shr_strdata_init_streams
   public shr_strdata_init_mapping
   public shr_strdata_create
   public shr_strdata_advance
@@ -64,7 +64,7 @@ module shr_strdata_mod
 
   ! !PRIVATE:
 
-  integer(SHR_KIND_IN)                 :: debug    = 0  ! local debug flag
+  integer(IN)                          :: debug    = 0  ! local debug flag
   integer(IN)      ,parameter          :: nStrMax = 30
   integer(IN)      ,parameter          :: nVecMax = 30
   character(len=*) ,parameter, public  :: shr_strdata_nullstr = 'null'
@@ -107,7 +107,7 @@ module shr_strdata_mod
      type(mct_gsmap)                :: gsmap             ! model grid global seg map
      type(mct_ggrid)                :: grid              ! model grid ggrid
      type(mct_avect)                :: avs(nStrMax)      ! model grid stream attribute vectors
-                                                         ! stream attribute vectors that are time and spatially 
+                                                         ! stream attribute vectors that are time and spatially
                                                          ! interpolated to model grid
 
      ! --- stream info, internal ---
@@ -152,7 +152,7 @@ contains
 !===============================================================================
 
   subroutine shr_strdata_init( &
-       SDAT,mpicom,compid,name,scmmode,scmlon,scmlat, &
+       SDAT,mpicom,compid,name,scmmode,iop_mode,scmlon,scmlat, &
        gsmap, ggrid, nxg, nyg, nzg, &
        calendar, reset_domain_mask, dmodel_domain_fracname_from_stream)
 
@@ -166,6 +166,7 @@ contains
     integer(IN)           ,intent(in)          :: compid
     character(len=*)      ,intent(in),optional :: name
     logical               ,intent(in),optional :: scmmode
+    logical               ,intent(in),optional :: iop_mode
     real(R8)              ,intent(in),optional :: scmlon
     real(R8)              ,intent(in),optional :: scmlat
     type(mct_gsmap)       ,intent(in),optional :: gsmap
@@ -181,7 +182,7 @@ contains
     integer(IN)                :: n,m,k         ! generic index
     integer(IN)                :: my_task,npes  ! my task, total pes
     character(CS)              :: lname         ! local name
-    integer                    :: ierr 
+    integer                    :: ierr
     character(len=*),parameter :: subname = "(shr_strdata_init) "
     character(*),parameter     :: F00 = "('(shr_strdata_init) ',8a)"
     !-------------------------------------------------------------------------------
@@ -210,7 +211,7 @@ contains
          gsmap=gsmap, ggrid=ggrid, nxg=nxg, nyg=nyg, nzg=nzg, &
          reset_domain_mask=reset_domain_mask, &
          dmodel_domain_fracname_from_stream=dmodel_domain_fracname_from_stream, &
-         scmmode=scmmode, scmlon=scmlon, scmlat=scmlat)
+         scmmode=scmmode, iop_mode=iop_mode, scmlon=scmlon, scmlat=scmlat)
 
     !------------------------------------------------------
     ! --- (2) initialize streams and stream domains ---
@@ -229,7 +230,7 @@ contains
   !===============================================================================
 
   subroutine shr_strdata_init_model_domain(SDAT, mpicom, compid, my_task, &
-       gsmap, ggrid, nxg, nyg, nzg, scmmode, scmlon, scmlat, &
+       gsmap, ggrid, nxg, nyg, nzg, scmmode, iop_mode, scmlon, scmlat, &
        reset_domain_mask, dmodel_domain_fracname_from_stream)
 
     ! input/output variables
@@ -243,6 +244,7 @@ contains
     integer(IN)           ,intent(in),optional :: nyg
     integer(IN)           ,intent(in),optional :: nzg
     logical               ,intent(in),optional :: scmmode
+    logical               ,intent(in),optional :: iop_mode
     real(R8)              ,intent(in),optional :: scmlon
     real(R8)              ,intent(in),optional :: scmlat
     logical               ,intent(in),optional :: reset_domain_mask
@@ -278,12 +280,14 @@ contains
     logical        :: readfrac     ! whether to read fraction from the first stream file
     integer        :: kmask, kfrac
     logical        :: lscmmode
+    logical        :: liop_mode
     integer(IN)      ,parameter :: master_task = 0
     character(*)     ,parameter :: F00 = "('(shr_strdata_init) ',8a)"
     character(len=*) ,parameter :: subname = "(shr_strdata_init) "
     !-------------------------------------------------------------------------------
 
     lscmmode = .false.
+    liop_mode = .false.
     if (present(scmmode)) then
        lscmmode = scmmode
        if (lscmmode) then
@@ -292,6 +296,10 @@ contains
              call shr_sys_abort(subname//' ERROR: scmmode1 lon lat')
           endif
        endif
+    endif
+
+    if (present(iop_mode)) then
+      liop_mode=iop_mode
     endif
 
     if (present(gsmap) .and. present(ggrid) .and. present(nxg) .and. present(nyg) .and. present(nzg)) then
@@ -345,7 +353,7 @@ contains
                      decomp=decomp, lonName=lonName, latName=latName, hgtName=hgtName, &
                      maskName=maskName, areaName=areaName, &
                      fracname=dmodel_domain_fracname_from_stream, readfrac=readfrac, &
-                     scmmode=lscmmode, scmlon=scmlon, scmlat=scmlat)
+                     scmmode=lscmmode, iop_mode=liop_mode, scmlon=scmlon, scmlat=scmlat)
              else
                 call shr_dmodel_readgrid(SDAT%grid,SDAT%gsmap, SDAT%nxg, SDAT%nyg, SDAT%nzg, &
                      fileName, compid, mpicom, &
@@ -370,7 +378,8 @@ contains
           if (lscmmode) then
              call shr_dmodel_readgrid(SDAT%grid,SDAT%gsmap,SDAT%nxg,SDAT%nyg,SDAT%nzg, &
                   SDAT%domainfile, compid, mpicom, &
-                  decomp=decomp, readfrac=.true., scmmode=lscmmode, scmlon=scmlon, scmlat=scmlat)
+                  decomp=decomp, readfrac=.true., scmmode=lscmmode, iop_mode=liop_mode, &
+                  scmlon=scmlon, scmlat=scmlat)
           else
              call shr_dmodel_readgrid(SDAT%grid, SDAT%gsmap, SDAT%nxg, SDAT%nyg, SDAT%nzg, &
                   SDAT%domainfile, compid, mpicom, &
@@ -381,7 +390,7 @@ contains
 
        if (present(reset_domain_mask)) then
           if (reset_domain_mask) then
-             write(logunit,F00) ' Resetting the component domain mask and frac to 1'
+             if (my_task == master_task) write(logunit,F00) ' Resetting the component domain mask and frac to 1'
              kmask = mct_aVect_indexRA(SDAT%grid%data,'mask')
              SDAT%grid%data%rattr(kmask,:) = 1
 
@@ -403,7 +412,7 @@ contains
     type(shr_strdata_type),intent(inout) :: SDAT
     integer(IN)           ,intent(in)    :: compid
     integer(IN)           ,intent(in)    :: mpicom
-    integer(IN)           ,intent(in)    :: my_task  
+    integer(IN)           ,intent(in)    :: my_task
 
     ! local variables
     integer(IN)          :: n,m,k    ! generic index
@@ -421,7 +430,7 @@ contains
     character(len=*), parameter :: subname = "(shr_strdata_init_streams) "
     !-------------------------------------------------------------------------------
 
-    ! Count streams again in case user made changes 
+    ! Count streams again in case user made changes
     if (my_task == master_task) then
        do n=1,nStrMax
 
@@ -501,17 +510,17 @@ contains
 
   subroutine shr_strdata_init_mapping(SDAT, compid, mpicom, my_task)
 
-    ! input/output arguments 
+    ! input/output arguments
     type(shr_strdata_type),intent(inout) :: SDAT
     integer(IN)           ,intent(in)    :: compid
     integer(IN)           ,intent(in)    :: mpicom
-    integer(IN)           ,intent(in)    :: my_task  
+    integer(IN)           ,intent(in)    :: my_task
 
     ! local variables
     type(mct_sMat) :: sMati
     integer(IN)    :: n,m,k   ! generic index
     integer(IN)    :: nu,nv   ! u,v index
-    integer(IN)    :: method  ! mapping method 
+    integer(IN)    :: method  ! mapping method
     character(CXX) :: fldList ! list of fields
     character(CS)  :: uname   ! u vector field name
     character(CS)  :: vname   ! v vector field name
