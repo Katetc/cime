@@ -1,0 +1,206 @@
+name: cime testing
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'CIME/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'utils/**'
+      - 'docker/**'
+
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'CIME/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'utils/**'
+      - 'docker/**'
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+  packages: read
+
+jobs:
+  build-containers:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ESMCI/cime
+          tags: |
+            type=raw,value=latest,enable=${{ github.event_name == 'push' }}
+            type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
+            type=sha,format=long
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          target: base
+          context: docker/
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  pre-commit:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && ! cancelled() }}
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Runs pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit run -a
+
+  # Runs unit testing under different python versions.
+  unit-testing:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && always() && ! cancelled() }}
+    needs: build-containers
+    container:
+      image: ghcr.io/esmci/cime:${{ github.event.pull_request.head.repo.full_name == github.repository && format('sha-{0}', github.sha) || 'latest' }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.10", "3.12"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run tests
+        shell: bash
+        env:
+          CIME_MODEL: "cesm"
+          CIME_DRIVER: "nuopc"
+          CIME_TEST_PLATFORM: ubuntu-latest
+        run: |
+          export CIME_REMOTE=https://github.com/${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          export CIME_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF##*/}}
+
+          source /entrypoint.sh
+
+          # from 'entrypoint.sh', create and activate new environment
+          create_environment ${{ matrix.python-version }}
+
+          pip install -r test-requirements.txt
+
+          # GitHub runner home is different than container
+          cp -rf /root/.cime /github/home/
+
+          pytest -vvv --cov=CIME --machine docker --no-fortran-run CIME/tests/test_unit*
+
+  # Run system tests
+  system-testing:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && always() && ! cancelled() }}
+    needs: build-containers
+    container:
+      image: ghcr.io/esmci/cime:${{ github.event.pull_request.head.repo.full_name == github.repository && format('sha-{0}', github.sha) || 'latest' }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      options: --hostname docker
+    strategy:
+      # allow all jobs to finish
+      fail-fast: false
+      matrix:
+        model: ["e3sm", "cesm"]
+        driver: ["mct", "nuopc"]
+        exclude:
+          # exclude nuopc driver when running e3sm tests
+          - model: "e3sm"
+            driver: "nuopc"
+          # exclude mct driver when running cesm tests
+          - model: "cesm"
+            driver: "mct"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Cache inputdata
+        uses: actions/cache@v2
+        with:
+          path: /storage/inputdata
+          key: inputdata-2
+      - name: Run tests
+        shell: bash
+        env:
+          CIME_MODEL: ${{ matrix.model }}
+          CIME_DRIVER: ${{ matrix.driver }}
+          CIME_TEST_PLATFORM: ubuntu-latest
+        run: |
+          pip install -r test-requirements.txt
+
+          export CIME_REMOTE=https://github.com/${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          export CIME_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF##*/}}
+
+          source /entrypoint.sh
+
+          # GitHub runner home is different than container
+          cp -rf /root/.cime /github/home/
+
+          source /opt/conda/etc/profile.d/conda.sh
+
+          conda activate base
+
+          # container libnetcdf is 4.9.2 as cesm requires esmf >8.6.1
+          # e3sm scorpio incompatible with 4.9.2, downgrade to 4.9.1
+          # only reference found about scorpio incompatibility with 4.9.2 (https://github.com/E3SM-Project/scorpio/issues/554#issuecomment-1877361470)
+          # TODO open scorpio issue, possible solutions; 1. support two conda environments in container 2. maybe move from conda to spack? build all libraries in image
+          if [[ "${CIME_MODEL}" == "e3sm" ]]; then
+            mamba install -y 'libnetcdf=4.9.1'
+          fi
+
+          pytest -vvv --cov=CIME --machine docker --no-fortran-run --no-teardown CIME/tests/test_sys*
+      - uses: mxschmitt/action-tmate@v3
+        if: ${{ !always() }}
+        with:
+          limit-access-to-actor: true
+      - name: Create testing log archive
+        if: ${{ failure() }}
+        shell: bash
+        run: tar -czvf /testing-logs-${GITHUB_RUN_NUMBER}-${{ matrix.model }}-${{ matrix.driver }}.tar.gz /storage/cases/
+        # How to download artifacts:
+        # https://docs.github.com/en/actions/managing-workflow-runs/downloading-workflow-artifacts
+      - name: Upload testing logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: testing-logs-${{ github.run_number }}-${{ matrix.model }}-${{ matrix.driver }}
+          path: /testing-logs-${{ github.run_number}}-${{ matrix.model }}-${{ matrix.driver }}.tar.gz
+          retention-days: 4

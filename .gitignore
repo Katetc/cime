@@ -2,6 +2,11 @@
 *.pyc
 buildnmlc
 buildlib.*c
+CIME.egg-info/
+build/
+_build/
+dist/
+.coverage
 
 # Ignore emacs backup files
 *~
@@ -18,5 +23,9 @@ scripts/Tools/JENKINS*
 # Ignore anything that are produced under scripts "cases" directory
 /scripts/cases/
 
-#Ignore nuopc driver available seperatly
-src/drivers/nuopc
+#Ignore Externals
+components
+libraries
+share
+test_coverage/**
+*.bak
