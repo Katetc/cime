@@ -107,6 +107,7 @@
       <value component="slim">$COMP_ROOT_DIR_LND/cime_config/config_tests.xml</value>
       <value component="cam">$COMP_ROOT_DIR_ATM/cime_config/config_tests.xml</value>
       <value component="cism">$COMP_ROOT_DIR_GLC/cime_config/config_tests.xml</value>
+      <value component="citcom">$COMP_ROOT_DIR_GIA/cime_config/config_tests.xml</value>
       <value component="mom">$COMP_ROOT_DIR_OCN/cime_config/config_tests.xml</value>
     </values>
     <group>test</group>
@@ -245,6 +246,18 @@
     <schema>$CIMEROOT/CIME/data/config/xml_schemas/config_compsets.xsd</schema>
   </entry>
 
+  <entry id="COMP_ROOT_DIR_GIA">
+    <type>char</type>
+    <default_value>unset</default_value>
+    <values>
+      <value component="citcom"  >$SRCROOT/</value>
+    </values>
+    <group>case_comps</group>
+    <file>env_case.xml</file>
+    <desc>Root directory of the case gia component  </desc>
+    <schema>$CIMEROOT/CIME/data/config/xml_schemas/config_compsets.xsd</schema>
+  </entry>
+
   <entry id="COMP_ROOT_DIR_IAC">
     <type>char</type>
     <default_value>unset</default_value>
@@ -280,6 +293,7 @@
       <value component="cam"       >$COMP_ROOT_DIR_ATM/cime_config/config_compsets.xml</value>
       <value component="ufsatm"    >$COMP_ROOT_DIR_ATM/cime_config/config_compsets.xml</value>
       <value component="cism"      >$COMP_ROOT_DIR_GLC/cime_config/config_compsets.xml</value>
+      <value component="citcom"    >$COMP_ROOT_DIR_GIA/cime_config/config_compsets.xml</value>
       <value component="clm"       >$COMP_ROOT_DIR_LND/cime_config/config_compsets.xml</value>
       <value component="cice"      >$COMP_ROOT_DIR_ICE/cime_config/config_compsets.xml</value>
       <value component="pop"       >$COMP_ROOT_DIR_OCN/cime_config/config_compsets.xml</value>
@@ -380,6 +394,7 @@
       <value component="drv"       >$COMP_ROOT_DIR_CPL/cime_config/testdefs/testlist_drv.xml</value>
       <value component="cam"       >$COMP_ROOT_DIR_ATM/cime_config/testdefs/testlist_cam.xml</value>
       <value component="cism"      >$COMP_ROOT_DIR_GLC/cime_config/testdefs/testlist_cism.xml</value>
+      <value component="citcom"    >$COMP_ROOT_DIR_GIA/cime_config/testdefs/testlist_citcom.xml</value>
       <value component="clm"       >$COMP_ROOT_DIR_LND/cime_config/testdefs/testlist_clm.xml</value>
       <value component="slim"      >$COMP_ROOT_DIR_LND/cime_config/testdefs/testlist_slim.xml</value>
       <value component="cice5"     >$COMP_ROOT_DIR_ICE/cime_config/testdefs/testlist_cice.xml</value>
@@ -414,6 +429,7 @@
       <value component="drv"       >$COMP_ROOT_DIR_CPL/cime_config/testdefs/testmods_dirs</value>
       <value component="cam"       >$COMP_ROOT_DIR_ATM/cime_config/testdefs/testmods_dirs</value>
       <value component="cism"      >$COMP_ROOT_DIR_GLC/cime_config/testdefs/testmods_dirs</value>
+      <value component="citcom"    >$COMP_ROOT_DIR_GIA/cime_config/testdefs/testmods_dirs</value>
       <value component="clm"       >$COMP_ROOT_DIR_LND/cime_config/testdefs/testmods_dirs</value>
       <value component="slim"      >$COMP_ROOT_DIR_LND/cime_config/testdefs/testmods_dirs</value>
       <value component="cice5"     >$COMP_ROOT_DIR_ICE/cime_config/testdefs/testmods_dirs</value>
@@ -446,6 +462,7 @@
       <value component="drv"      >$COMP_ROOT_DIR_CPL/cime_config/usermods_dirs</value>
       <value component="cam"      >$COMP_ROOT_DIR_ATM/cime_config/usermods_dirs</value>
       <value component="cism"     >$COMP_ROOT_DIR_GLC/cime_config/usermods_dirs</value>
+      <value component="citcom"   >$COMP_ROOT_DIR_GIA/cime_config/usermods_dirs</value>
       <value component="clm"      >$COMP_ROOT_DIR_LND/cime_config/usermods_dirs</value>
       <value component="slim"     >$COMP_ROOT_DIR_LND/cime_config/usermods_dirs</value>
       <value component="cice5"    >$COMP_ROOT_DIR_ICE/cime_config/usermods_dirs</value>
@@ -490,6 +507,7 @@
       <value component="blom" >$COMP_ROOT_DIR_OCN/bld/namelist_files/namelist_definition_blom.xml</value>
       -->
       <value component="slim" >$COMP_ROOT_DIR_LND/bld/namelist_files/namelist_definition_slim.xml</value>
+      <value component="citcom" >$COMP_ROOT_DIR_GIA/bld/namelist_files/namelist_definition.xml</value>
     </values>
     <group>case_last</group>
     <file>env_case.xml</file>
@@ -590,6 +608,18 @@
     <type>char</type>
     <values>
       <value>$COMP_ROOT_DIR_GLC/cime_config/config_component.xml</value>
+    </values>
+    <group>case_last</group>
+    <file>env_case.xml</file>
+    <desc>file containing specification of component specific definitions and values(for documentation only - DO NOT EDIT)</desc>
+    <schema version="2.0">$CIMEROOT/CIME/data/config/xml_schemas/entry_id.xsd</schema>
+    <schema version="3.0">$CIMEROOT/CIME/data/config/xml_schemas/entry_id_version3.xsd</schema>
+  </entry>
+
+  <entry id="CONFIG_GIA_FILE">
+    <type>char</type>
+    <values>
+      <value>$COMP_ROOT_DIR_GIA/cime_config/config_component.xml</value>
     </values>
     <group>case_last</group>
     <file>env_case.xml</file>

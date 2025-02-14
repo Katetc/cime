@@ -37,6 +37,7 @@
       <xs:attribute name="ocn" type="xs:string"/>
       <xs:attribute name="wav" type="xs:string"/>
       <xs:attribute name="glc" type="xs:string"/>
+      <xs:attribute name="gia" type="xs:string"/>
       <xs:attribute name="ice" type="xs:string"/>
       <xs:attribute name="rof" type="xs:string"/>
       <xs:attribute name="lnd" type="xs:string"/>

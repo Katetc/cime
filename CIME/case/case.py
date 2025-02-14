@@ -264,8 +264,8 @@ class Case(object):
                 self.thread_count,
             ) = get_aprun_cmd_for_case(self, "e3sm.exe")
             self.spare_nodes = env_mach_pes.get_spare_nodes(self.num_nodes)
-            self.num_nodes += self.spare_nodes
-        else:
+            self.num_nodes += self.spare_nodes        
+        else:            
             self.total_tasks = env_mach_pes.get_total_tasks(comp_classes, asyncio)
             self.tasks_per_node = env_mach_pes.get_tasks_per_node(
                 self.total_tasks, self.thread_count
@@ -790,6 +790,9 @@ class Case(object):
         elif "GLC" in progcomps and progcomps["GLC"]:
             # This is a "TG" compset
             primary_component = spec["GLC"]
+        elif "GIA" in progcomps and progcomps["GIA"]:
+            # This is a "U" compset
+            primary_component = spec["GIA"]
         elif progcomps["ROF"]:
             # This is a "R" compset
             primary_component = spec["ROF"]
@@ -829,8 +832,10 @@ class Case(object):
         ('1850_CAM60_CLM50%BGC-CROP_CICE_POP2%ECO%ABIO-DIC_MOSART_CISM2%NOEVOLVE_WW3_SIAC_SESP_BGC%BDRD_TEST', ['1850', 'CAM60', 'CLM50%BGC-CROP', 'CICE', 'POP2%ECO%ABIO-DIC', 'MOSART', 'CISM2%NOEVOLVE', 'WW3', 'SIAC', 'SESP'])
         >>> Case(caseroot, read_only=False)._valid_compset_impl('1850_SATM_SLND_SICE_SOCN_SGLC_SWAV', 'S', ['CPL', 'ATM', 'LND', 'ICE', 'OCN', 'ROF', 'GLC', 'WAV', 'IAC', 'ESP'], {'datm':1,'satm':1, 'cam':1,'dlnd':2,'clm':2,'slnd':2,'cice':3,'dice':3,'sice':3,'pop':4,'docn':4,'socn':4,'mosart':5,'drof':5,'srof':5,'cism':6,'sglc':6,'ww':7,'swav':7,'ww3':7,'sesp':8})
         ('1850_SATM_SLND_SICE_SOCN_SROF_SGLC_SWAV_SIAC_SESP', ['1850', 'SATM', 'SLND', 'SICE', 'SOCN', 'SROF', 'SGLC', 'SWAV', 'SIAC', 'SESP'])
-
-        >>> Case(caseroot, read_only=False)._valid_compset_impl('1850_SATM_SLND_SICE_SOCN_SGLC_SWAV', None, ['CPL', 'ATM', 'LND', 'ICE', 'OCN', 'ROF', 'GLC', 'WAV', 'IAC', 'ESP'], {'datm':1,'satm':1, 'cam':1,'dlnd':2,'clm':2,'slnd':2,'cice':3,'dice':3,'sice':3,'pop':4,'docn':4,'socn':4,'mosart':5,'drof':5,'srof':5,'cism':6,'sglc':6,'ww':7,'swav':7,'ww3':7,'sesp':8}) #doctest: +IGNORE_EXCEPTION_DETAIL
+        >>> Case(caseroot, read_only=False)._valid_compset_impl('1850_SATM_SLND_SICE_SOCN_SGLC_SWAV', 'S', ['CPL', 'ATM', 'LND', 'ICE', 'OCN', 'ROF', 'GLC', 'WAV', 'IAC', 'ESP'], {'datm':1,'satm':1, 'cam':1,'dlnd':2,'clm':2,'slnd':2,'cice':3,'dice':3,'sice':3,'pop':4,'docn':4,'socn':4,'mosart':5,'drof':5,'srof':5,'cism':6,'sglc':6,'ww':7,'swav':7,'ww3':7,'sesp':8})
+        ('1850_SATM_SLND_SICE_SOCN_SROF_SGLC_CITCOM_SWAV', ['1850', 'SATM', 'SLND', 'SICE', 'SOCN', 'SROF', 'SGLC', 'CITCOM', 'SWAV'])
+        >>> Case(caseroot, read_only=False)._valid_compset_impl('1850_SATM_SLND_SICE_SOCN_SGLC_CITCOM_SWAV', None, ['CPL', 'ATM', 'LND', 'ICE', 'OCN', 'ROF', 'GLC', 'CITCOM', 'WAV'], {'datm':1,'satm':1, 'cam':1,'dlnd':2,'clm':2,'slnd':2,'cice':3,'dice':3,'sice':3,'pop':4,'docn':4,'socn':4,'mosart':5,'drof':5,'srof':5,'cism':6,'sglc':6,'citcom':7,'ww':8,'swav':8,'ww3':8})
+        #doctest: +IGNORE_EXCEPTION_DETAIL
         Traceback (most recent call last):
         CIMEError: ERROR: Invalid compset name, 1850_SATM_SLND_SICE_SOCN_SGLC_SWAV, all stub components generated
         >>> shutil.rmtree(workdir, ignore_errors=True)

@@ -24,6 +24,7 @@ grid_prefix = {
     "rof": "r%",
     "wav": "w%",
     "glc": "g%",
+    "gia": "u%",
     "mask": "m%",
     "iac": "z%",
 }
